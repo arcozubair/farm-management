@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Card,
@@ -14,8 +14,8 @@ import {
   Inventory2,
   AttachMoney,
 } from '@mui/icons-material';
-import { livestockService } from '../services/livestockService';
-import { productService } from '../services/productService';
+import * as livestockService from '../services/livestockService';
+import * as productService from '../services/productService';
 import { useLocation } from 'react-router-dom';
 
 const StatCard = ({ title, value, icon, color }) => (
@@ -49,15 +49,16 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
         
-        const [livestockRes, productsRes] = await Promise.all([
-          livestockService.getStats(),
-          productService.getAll(),
-        ]);
-
-        console.log('Raw dashboard data:', { 
-          livestock: livestockRes?.data, 
-          products: productsRes?.data 
-        });
+        // Get livestock stats
+        const livestockRes = await livestockService.getLivestockStats();
+        
+        // Try to get products, but don't fail if not available
+        let productsRes = { data: [] };
+        try {
+          productsRes = await productService.getAll();
+        } catch (err) {
+          console.log('Products not available yet');
+        }
 
         setData({
           livestock: Array.isArray(livestockRes?.data) ? livestockRes.data : [],

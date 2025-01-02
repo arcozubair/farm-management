@@ -1,66 +1,53 @@
-import api from './api';
+import axios from 'axios';
 
-export const livestockService = {
-  getAll: async () => {
-    try {
-      const response = await api.get('/livestock');
-      console.log('Livestock service getAll response:', response); // Debug log
-      return response;
-    } catch (error) {
-      console.error('Livestock service getAll error:', error);
-      throw error;
-    }
-  },
+const API_URL = 'http://localhost:5000/api/livestock';
 
-  getById: async (id) => {
-    try {
-      const response = await api.get(`/livestock/${id}`);
-      return response;
-    } catch (error) {
-      console.error('Livestock service getById error:', error);
-      throw error;
-    }
-  },
-
-  create: async (data) => {
-    try {
-      const response = await api.post('/livestock', data);
-      console.log('Livestock service create response:', response); // Debug log
-      return response;
-    } catch (error) {
-      console.error('Livestock service create error:', error);
-      throw error;
-    }
-  },
-
-  update: async (id, data) => {
-    try {
-      const response = await api.put(`/livestock/${id}`, data);
-      return response;
-    } catch (error) {
-      console.error('Livestock service update error:', error);
-      throw error;
-    }
-  },
-
-  delete: async (id) => {
-    try {
-      const response = await api.delete(`/livestock/${id}`);
-      return response;
-    } catch (error) {
-      console.error('Livestock service delete error:', error);
-      throw error;
-    }
-  },
-
-  getStats: async () => {
-    try {
-      const response = await api.get('/livestock/stats');
-      console.log('Livestock service getStats response:', response); // Debug log
-      return response;
-    } catch (error) {
-      console.error('Livestock service getStats error:', error);
-      throw error;
-    }
+// Get token from localStorage
+const getAuthHeader = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem('token')}`
   }
-}; 
+});
+
+// Export individual functions
+export const getAllLivestock = async () => {
+  try {
+    const response = await axios.get(API_URL, getAuthHeader());
+    console.log('Service response:', response); // Debug log
+    return response;
+  } catch (error) {
+    console.error('Service error:', error);
+    throw error;
+  }
+};
+
+export const addLivestock = async (livestockData) => {
+  const response = await axios.post(API_URL, livestockData, getAuthHeader());
+  return response.data;
+};
+
+export const updateLivestock = async (id, updateData) => {
+  const response = await axios.put(`${API_URL}/${id}`, updateData, getAuthHeader());
+  return response.data;
+};
+
+export const deleteLivestock = async (id) => {
+  const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
+  return response.data;
+};
+
+export const getLivestockStats = async () => {
+  const response = await axios.get(`${API_URL}/stats`, getAuthHeader());
+  return response.data;
+};
+
+// Default export if needed
+const livestockService = {
+  getAllLivestock,
+  addLivestock,
+  updateLivestock,
+  deleteLivestock,
+  getLivestockStats
+};
+
+export default livestockService; 

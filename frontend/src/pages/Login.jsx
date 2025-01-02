@@ -44,22 +44,12 @@ const Login = () => {
       try {
         await login(values.username, values.password);
         enqueueSnackbar('Login successful! Welcome back.', { 
-          variant: 'success',
-          autoHideDuration: 3000,
-          anchorOrigin: {
-            vertical: 'top',
-            horizontal: 'right',
-          },
+          variant: 'success'
         });
       } catch (err) {
         setError(err.message || 'Failed to login');
         enqueueSnackbar(err.message || 'Failed to login', { 
-          variant: 'error',
-          autoHideDuration: 3000,
-          anchorOrigin: {
-            vertical: 'top',
-            horizontal: 'right',
-          },
+          variant: 'error'
         });
       } finally {
         setLoading(false);

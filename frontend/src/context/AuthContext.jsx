@@ -46,18 +46,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    // Clear all auth-related data
     setUser(null);
-    setIsAuthenticated(false);
-    enqueueSnackbar('Logged out successfully', { 
-      variant: 'success',
-      autoHideDuration: 2000,
-      anchorOrigin: {
-        vertical: 'bottom',
-        horizontal: 'right',
-      },
-    });
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    
+    // Clear any other app-specific data
+    localStorage.clear(); // This will clear ALL localStorage items
+    
+    // Clear session storage if you're using it
+    sessionStorage.clear();
+
+    // Show success message
+    enqueueSnackbar('Logged out successfully', { variant: 'success' });
+    
+    // Navigate to login page
+    navigate('/login');
   };
+
+
 
   const value = {
     user,
