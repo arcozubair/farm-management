@@ -18,14 +18,8 @@ function App() {
 
   return (
     <ThemeProvider theme={createTheme()}>
-      <SnackbarProvider
-        maxSnack={3}
-        autoHideDuration={3000}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
+     
+s
         <Routes>
           {/* Public Routes */}
           <Route 
@@ -112,7 +106,6 @@ function App() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </SnackbarProvider>
     </ThemeProvider>
   );
 }

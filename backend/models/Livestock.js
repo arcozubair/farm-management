@@ -1,25 +1,39 @@
 const mongoose = require('mongoose');
 
 const livestockSchema = new mongoose.Schema({
-  type: { 
-    type: String, 
-    enum: ['sheep', 'cow', 'chicken'], 
-    required: true 
-  },
-  gender: { 
-    type: String, 
-    enum: ['male', 'female'], 
-    required: true 
-  },
-  quantity: { 
-    type: Number, 
+  category: {
+    type: String,
     required: true,
-    min: 0 
+    enum: ['cattle', 'poultry', 'sheep'] // Main categories
   },
-  lastUpdated: { 
-    type: Date, 
-    default: Date.now 
+  type: {
+    type: String,
+    required: true
+  },
+
+  quantity: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  lastUpdated: {
+    type: Date,
+    default: Date.now
+  },
+  notes: {
+    type: String
   }
+}, {
+  timestamps: true
 });
+
+// Predefined types for each category
+livestockSchema.statics.getTypes = function() {
+  return {
+    cattle: ['cow', 'bull', 'calf'],
+    poultry: ['hen', 'rooster', 'chick'],
+    sheep: ['ewe', 'ram', 'lamb']
+  };
+};
 
 module.exports = mongoose.model('Livestock', livestockSchema); 

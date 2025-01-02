@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import {
   AppBar,
@@ -74,7 +75,6 @@ const MainLayout = ({ children }) => {
   };
 
   const handleLogout = () => {
-    handleClose();
     logout();
   };
 
@@ -121,7 +121,7 @@ const MainLayout = ({ children }) => {
                     fontWeight: 600,
                   }}
                 >
-                  {user?.username?.charAt(0)?.toUpperCase()}
+                  {user?.name?.charAt(0)?.toUpperCase()}
                 </Avatar>
                 <Box sx={{ ml: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
