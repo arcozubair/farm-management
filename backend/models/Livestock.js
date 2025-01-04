@@ -4,24 +4,29 @@ const livestockSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['cattle', 'poultry', 'sheep'] // Main categories
+    enum: ['cattle', 'poultry', 'sheep']
   },
   type: {
     type: String,
-    required: true
+    required: true,
+    enum: [
+      // Cattle
+      'cow', 'bull', 'maleCalf', 'femaleCalf',
+      // Poultry
+      'hen', 'rooster', 'chick',
+      // Sheep
+      'femaleSheep', 'maleSheep', 'maleLamb', 'femaleLamb'
+    ]
   },
-
   quantity: {
     type: Number,
     required: true,
     min: 0
   },
+  notes: String,
   lastUpdated: {
     type: Date,
     default: Date.now
-  },
-  notes: {
-    type: String
   }
 }, {
   timestamps: true
@@ -30,9 +35,9 @@ const livestockSchema = new mongoose.Schema({
 // Predefined types for each category
 livestockSchema.statics.getTypes = function() {
   return {
-    cattle: ['cow', 'bull', 'calf'],
+    cattle: ['cow', 'bull', 'maleCalf', 'femaleCalf'],
     poultry: ['hen', 'rooster', 'chick'],
-    sheep: ['ewe', 'ram', 'lamb']
+    sheep: ['femaleSheep', 'maleSheep', 'maleLamb', 'femaleLamb']
   };
 };
 

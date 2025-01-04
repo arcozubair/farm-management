@@ -33,6 +33,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useSnackbar } from 'notistack';
 import * as livestockService from '../services/livestockService';
+import { useAuth } from '../context/AuthContext';
 
 // Styled components for modern look
 const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
@@ -78,9 +79,36 @@ const ActionButton = styled(IconButton)(({ theme }) => ({
   }
 }));
 
-const CategoryRow = ({ category, items, onEdit, onDelete }) => {
+const CategoryRow = ({ category, items, onEdit, onDelete, permissions }) => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Group items by subcategory
+  const groupedItems = items.reduce((acc, item) => {
+    let subcategory;
+    if (category === 'cattle') {
+      if (item.type.includes('Calf')) {
+        subcategory = 'Calves';
+      } else {
+        subcategory = 'Adult Cattle';
+      }
+    } else if (category === 'sheep') {
+      if (item.type.includes('Lamb')) {
+        subcategory = 'Lambs';
+      } else {
+        subcategory = 'Adult Sheep';
+      }
+    } else {
+      subcategory = 'All'; // For poultry, keep it simple
+    }
+    
+    if (!acc[subcategory]) {
+      acc[subcategory] = [];
+    }
+    acc[subcategory].push(item);
+    return acc;
+  }, {});
 
   return (
     <>
@@ -108,47 +136,73 @@ const CategoryRow = ({ category, items, onEdit, onDelete }) => {
             {totalQuantity}
           </Typography>
         </StyledTableCell>
-        <StyledTableCell />
+       
       </StyledTableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1, ml: 4 }}>
-              <Table size="small" aria-label="livestock">
-                <TableHead>
-                  <TableRow>
-                    <StyledTableCell>Type</StyledTableCell>
-                    <StyledTableCell align="right">Quantity</StyledTableCell>
-                    <StyledTableCell align="right">Actions</StyledTableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {items.map((item) => (
-                    <StyledTableRow key={item._id}>
-                      <StyledTableCell component="th" scope="row">
-                        {getTypeLabel(item.type)}
-                      </StyledTableCell>
-                      <StyledTableCell align="right">{item.quantity}</StyledTableCell>
-                      <StyledTableCell align="right">
-                        <ActionButton 
-                          onClick={() => onEdit(item)}
-                          size="small"
-                          sx={{ color: 'primary.main' }}
-                        >
-                          <EditIcon />
-                        </ActionButton>
-                        <ActionButton 
-                          onClick={() => onDelete(item._id)}
-                          size="small"
-                          sx={{ color: 'error.main' }}
-                        >
-                          <DeleteIcon />
-                        </ActionButton>
-                      </StyledTableCell>
-                    </StyledTableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {Object.entries(groupedItems).map(([subcategory, subcategoryItems]) => (
+                <Box key={subcategory} sx={{ mb: 3 }}>
+                  {category !== 'poultry' && (
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        mb: 1
+                      }}
+                    >
+                      {subcategory}
+                    </Typography>
+                  )}
+                  <Table size="small" aria-label="livestock">
+                    <TableHead>
+                      <TableRow>
+                        <StyledTableCell>Type</StyledTableCell>
+                        <StyledTableCell align="right">Quantity</StyledTableCell>
+                        {(permissions.canEdit || permissions.canDelete) && (
+                          <StyledTableCell align="right">Actions</StyledTableCell>
+                        )}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {subcategoryItems.map((item) => (
+                        <StyledTableRow key={item._id}>
+                          <StyledTableCell component="th" scope="row">
+                            {getTypeLabel(item.type)}
+                          </StyledTableCell>
+                          <StyledTableCell align="right">
+                            {item.quantity}
+                          </StyledTableCell>
+                          {(permissions.canEdit || permissions.canDelete) && (
+                            <StyledTableCell align="right">
+                              {permissions.canEdit && (
+                                <ActionButton 
+                                  onClick={() => onEdit(item)}
+                                  size="small"
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <EditIcon />
+                                </ActionButton>
+                              )}
+                              {permissions.canDelete && (
+                                <ActionButton 
+                                  onClick={() => onDelete(item._id)}
+                                  size="small"
+                                  sx={{ color: 'error.main' }}
+                                >
+                                  <DeleteIcon />
+                                </ActionButton>
+                              )}
+                            </StyledTableCell>
+                          )}
+                        </StyledTableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              ))}
             </Box>
           </Collapse>
         </TableCell>
@@ -159,21 +213,29 @@ const CategoryRow = ({ category, items, onEdit, onDelete }) => {
 
 const getTypeLabel = (type) => {
   const typeLabels = {
+    // Cattle
     cow: 'Cow (Female)',
     bull: 'Bull (Male)',
-    calf: 'Calf (Young)',
+    maleCalf: 'Calf (Male)',
+    femaleCalf: 'Calf (Female)',
+    
+    // Poultry (unchanged)
     hen: 'Hen (Female)',
     rooster: 'Rooster (Male)',
     chick: 'Chick (Young)',
-    ewe: 'Ewe (Female)',
-    ram: 'Ram (Male)',
-    lamb: 'Lamb (Young)'
+    
+    // Sheep
+    femaleSheep: 'Sheep (Female)',
+    maleSheep: 'Sheep (Male)',
+    maleLamb: 'Lamb (Male)',
+    femaleLamb: 'Lamb (Female)'
   };
   return typeLabels[type] || type;
 };
 
 const Livestock = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuth();
   const [livestock, setLivestock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -184,12 +246,16 @@ const Livestock = () => {
     quantity: '',
     notes: ''
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [livestockToDelete, setLivestockToDelete] = useState(null);
+  const [existingQuantity, setExistingQuantity] = useState(0);
 
   const categories = {
     cattle: [
       { value: 'cow', label: 'Cow (Female)' },
       { value: 'bull', label: 'Bull (Male)' },
-      { value: 'calf', label: 'Calf (Young)' }
+      { value: 'maleCalf', label: 'Calf (Male)' },
+      { value: 'femaleCalf', label: 'Calf (Female)' }
     ],
     poultry: [
       { value: 'hen', label: 'Hen (Female)' },
@@ -197,10 +263,19 @@ const Livestock = () => {
       { value: 'chick', label: 'Chick (Young)' }
     ],
     sheep: [
-      { value: 'ewe', label: 'Ewe (Female)' },
-      { value: 'ram', label: 'Ram (Male)' },
-      { value: 'lamb', label: 'Lamb (Young)' }
+      { value: 'femaleSheep', label: 'Sheep (Female)' },
+      { value: 'maleSheep', label: 'Sheep (Male)' },
+      { value: 'maleLamb', label: 'Lamb (Male)' },
+      { value: 'femaleLamb', label: 'Lamb (Female)' }
     ]
+  };
+console.log("user permissions", user);
+  // Check if user exists and has permissions
+  const userPermissions = {
+    canView: user?.permissions?.canView || false,
+    canCreate: user?.permissions?.canCreate || false,
+    canEdit: user?.permissions?.canEdit || false,
+    canDelete: user?.permissions?.canDelete || false
   };
 
   useEffect(() => {
@@ -250,6 +325,45 @@ const Livestock = () => {
     });
   };
 
+  const getExistingQuantity = (category, type) => {
+    if (!category || !type) return 0;
+    const existingItem = livestock.find(
+      item => item.category === category && item.type === type
+    );
+    return existingItem ? existingItem.quantity : 0;
+  };
+
+  const handleFormChange = (field, value) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+
+      if (field === 'quantity') {
+        // Prevent negative values
+        const numValue = Number(value);
+        if (numValue < 0) return prev; // Don't update if negative
+        newData[field] = value;
+      } else {
+        newData[field] = value;
+        
+        // If category or type changes, update existing quantity
+        if (field === 'category' || field === 'type') {
+          const qty = getExistingQuantity(
+            field === 'category' ? value : newData.category,
+            field === 'type' ? value : newData.type
+          );
+          setExistingQuantity(qty);
+        }
+        
+        // Reset type if category changes
+        if (field === 'category') {
+          newData.type = '';
+        }
+      }
+      
+      return newData;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -258,13 +372,28 @@ const Livestock = () => {
         quantity: Number(formData.quantity)
       };
 
-      if (selectedLivestock) {
-        await livestockService.updateLivestock(selectedLivestock._id, submitData);
-        enqueueSnackbar('Livestock updated successfully', { variant: 'success' });
+      const existingLivestock = livestock.find(
+        item => item.category === formData.category && item.type === formData.type
+      );
+
+      if (existingLivestock && !selectedLivestock) {
+        const updatedQuantity = existingLivestock.quantity + Number(formData.quantity);
+        await livestockService.updateLivestock(existingLivestock._id, {
+          ...existingLivestock,
+          quantity: updatedQuantity,
+          notes: formData.notes || existingLivestock.notes
+        });
+        enqueueSnackbar('Livestock quantity updated successfully', { variant: 'success' });
       } else {
-        await livestockService.addLivestock(submitData);
-        enqueueSnackbar('Livestock added successfully', { variant: 'success' });
+        if (selectedLivestock) {
+          await livestockService.updateLivestock(selectedLivestock._id, submitData);
+          enqueueSnackbar('Livestock updated successfully', { variant: 'success' });
+        } else {
+          await livestockService.addLivestock(submitData);
+          enqueueSnackbar('Livestock added successfully', { variant: 'success' });
+        }
       }
+      
       fetchLivestock();
       handleCloseDialog();
     } catch (error) {
@@ -275,15 +404,25 @@ const Livestock = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this livestock?')) {
-      try {
-        await livestockService.deleteLivestock(id);
-        enqueueSnackbar('Livestock deleted successfully', { variant: 'success' });
-        fetchLivestock();
-      } catch (error) {
-        enqueueSnackbar('Failed to delete livestock', { variant: 'error' });
-      }
+  const handleDeleteClick = (id) => {
+    setLivestockToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setLivestockToDelete(null);
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await livestockService.deleteLivestock(livestockToDelete);
+      enqueueSnackbar('Livestock deleted successfully', { variant: 'success' });
+      fetchLivestock();
+      setDeleteDialogOpen(false);
+      setLivestockToDelete(null);
+    } catch (error) {
+      enqueueSnackbar('Failed to delete livestock', { variant: 'error' });
     }
   };
 
@@ -313,18 +452,20 @@ const Livestock = () => {
           >
             Livestock Management
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-            sx={{
-              borderRadius: 2,
-              textTransform: 'none',
-              px: 3
-            }}
-          >
-            Add Livestock
-          </Button>
+          {userPermissions.canCreate && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3
+              }}
+            >
+              Add Livestock
+            </Button>
+          )}
         </Box>
         <Divider sx={{ mb: 3 }} />
 
@@ -334,8 +475,10 @@ const Livestock = () => {
               <TableRow>
                 <StyledTableCell className="header" />
                 <StyledTableCell className="header">Category</StyledTableCell>
-                <StyledTableCell className="header" align="right">Total Quantity</StyledTableCell>
-                <StyledTableCell className="header" />
+                <StyledTableCell className="header" align="right">
+                  Total Quantity
+                </StyledTableCell>
+               
               </TableRow>
             </TableHead>
             <TableBody>
@@ -344,8 +487,9 @@ const Livestock = () => {
                   key={category}
                   category={category}
                   items={items}
-                  onEdit={handleOpenDialog}
-                  onDelete={handleDelete}
+                  onEdit={userPermissions.canEdit ? handleOpenDialog : undefined}
+                  onDelete={userPermissions.canDelete ? handleDeleteClick : undefined}
+                  permissions={userPermissions}
                 />
               ))}
             </TableBody>
@@ -365,11 +509,7 @@ const Livestock = () => {
                   <InputLabel>Category</InputLabel>
                   <Select
                     value={formData.category}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      category: e.target.value,
-                      type: '' // Reset type when category changes
-                    })}
+                    onChange={(e) => handleFormChange('category', e.target.value)}
                     label="Category"
                   >
                     {Object.keys(categories).map((category) => (
@@ -385,7 +525,7 @@ const Livestock = () => {
                   <InputLabel>Type</InputLabel>
                   <Select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    onChange={(e) => handleFormChange('type', e.target.value)}
                     label="Type"
                     disabled={!formData.category}
                   >
@@ -398,14 +538,35 @@ const Livestock = () => {
                   </Select>
                 </FormControl>
               </Grid>
+              {existingQuantity > 0 && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Existing Quantity"
+                    value={existingQuantity}
+                    disabled
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                  />
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Quantity"
+                  label={existingQuantity > 0 ? "Additional Quantity" : "Quantity"}
                   type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  inputProps={{ min: 0 }}
+                  onChange={(e) => handleFormChange('quantity', e.target.value)}
+                  inputProps={{ 
+                    min: 0,
+                    onKeyDown: (e) => {
+                      if (e.key === '-' || e.key === 'e') {
+                        e.preventDefault();
+                      }
+                    }
+                  }}
+                  helperText={existingQuantity > 0 ? `Total after adding: ${existingQuantity + Number(formData.quantity || 0)}` : ''}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -415,7 +576,7 @@ const Livestock = () => {
                   multiline
                   rows={4}
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  onChange={(e) => handleFormChange('notes', e.target.value)}
                 />
               </Grid>
             </Grid>
@@ -424,7 +585,39 @@ const Livestock = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button onClick={handleSubmit} variant="contained">
-            {selectedLivestock ? 'Update' : 'Add'}
+            {selectedLivestock ? 'Update' : existingQuantity > 0 ? 'Add to Existing' : 'Add'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this livestock? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleDeleteCancel}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            autoFocus
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

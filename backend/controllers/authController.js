@@ -53,7 +53,15 @@ exports.login = async (req, res) => {
       name: user.name,
       createdAt: user.createdAt,
       email: user.email,
-      role: user.role
+      role: user.role,
+      permissions: {
+        canView: user.permissions.get('canView') || false,
+        canCreate: user.permissions.get('canCreate') || false,
+        canEdit: user.permissions.get('canEdit') || false,
+        canDelete: user.permissions.get('canDelete') || false,
+        canAssignPermissions: user.permissions.get('canAssignPermissions') || false,
+        canRevokePermissions: user.permissions.get('canRevokePermissions') || false
+      }
     };
 
     console.log('Login successful for user:', username); // Debug log
@@ -135,13 +143,51 @@ exports.getMe = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: user
+      data: {
+        _id: user._id,
+        username: user.username,
+        permissions: {
+          canView: user.permissions.get('canView') || false,
+          canCreate: user.permissions.get('canCreate') || false,
+          canEdit: user.permissions.get('canEdit') || false,
+          canDelete: user.permissions.get('canDelete') || false,
+          canAssignPermissions: user.permissions.get('canAssignPermissions') || false,
+          canRevokePermissions: user.permissions.get('canRevokePermissions') || false
+        }
+      }
     });
   } catch (error) {
-    console.error('Get me error:', error);
     res.status(500).json({
       success: false,
       error: 'Server Error'
+    });
+  }
+};
+
+// Update user details
+exports.updateDetails = async (req, res) => {
+  try {
+    const fieldsToUpdate = {
+      username: req.body.username
+    };
+
+    const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        _id: user._id,
+        username: user.username,
+       
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid user data'
     });
   }
 }; 

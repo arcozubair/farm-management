@@ -32,8 +32,12 @@ export const updateLivestock = async (id, updateData) => {
 };
 
 export const deleteLivestock = async (id) => {
-  const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
-  return response.data;
+  try {
+    const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const getLivestockStats = async () => {

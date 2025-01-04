@@ -68,3 +68,26 @@ exports.authorize = (...roles) => {
     }
   };
 };
+// Check permission middleware
+exports.checkPermission = (permissionName) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions) {
+      return res.status(403).json({
+        success: false,
+        error: 'No permissions found'
+      });
+    }
+
+    // Get permission value from Map
+    const hasPermission = req.user.permissions.get(permissionName);
+    
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to perform this action'
+      });
+    }
+
+    next();
+  };
+};
