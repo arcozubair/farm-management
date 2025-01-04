@@ -4,9 +4,10 @@ const {
   getAllLivestock,
   addLivestock,
   updateLivestock,
+  deleteLivestock,
   getLivestockStats
 } = require('../controllers/livestockController');
-const { protect } = require('../middleware/auth');
+const { protect, checkPermission } = require('../middleware/auth');
 
 router.use(protect);
 
@@ -17,7 +18,8 @@ router
 
 router
   .route('/:id')
-  .put(updateLivestock);
+  .put(updateLivestock)
+  .delete(checkPermission('canDelete'), deleteLivestock);
 
 router.get('/stats', getLivestockStats);
 

@@ -16,6 +16,8 @@ import {
   Avatar,
   IconButton,
   InputAdornment,
+  Paper,
+  Chip,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -25,6 +27,8 @@ import {
   Email as EmailIcon,
   Person as PersonIcon,
   Badge as BadgeIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useFormik } from 'formik';
@@ -40,6 +44,15 @@ const Profile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const permissionLabels = {
+    canView: 'View',
+    canCreate: 'Create',
+    canEdit: 'Edit',
+    canDelete: 'Delete',
+    canAssignPermissions: 'Assign Permissions',
+    canRevokePermissions: 'Revoke Permissions'
+  };
 
   const passwordFormik = useFormik({
     initialValues: {
@@ -173,12 +186,13 @@ const Profile = () => {
                 </Grid>
               </Grid>
 
+           
               <Button
                 variant="contained"
                 startIcon={<LockIcon />}
                 onClick={() => setOpenPasswordDialog(true)}
                 sx={{ 
-                  mt: 2,
+                  mt: 3,
                   textTransform: 'none',
                   borderRadius: 2,
                   py: 1.5,
@@ -216,7 +230,47 @@ const Profile = () => {
               {/* Add more account information as needed */}
             </CardContent>
           </Card>
+         
+          <Card
+            elevation={0}
+            sx={{ 
+              borderRadius: 2,
+              backgroundColor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              p: 3
+            }}
+          >
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              User Permissions
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 2, 
+                display: 'flex', 
+                flexWrap: 'wrap',
+                gap: 1
+              }}
+            >
+              {Object.entries(user?.permissions || {})
+                .filter(([_, value]) => value === true)
+                .map(([key]) => (
+                  <Chip
+                    key={key}
+                    label={permissionLabels[key]}
+                    icon={<CheckCircleIcon />}
+                    color="success"
+                    variant="outlined"
+                  />
+                ))}
+            </Paper>
+          </Card>
+       
         </Grid>
+         {/* Permissions Card */}
+       
       </Grid>
 
       {/* Change Password Dialog */}
@@ -369,4 +423,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
