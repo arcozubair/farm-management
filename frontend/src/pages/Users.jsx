@@ -14,8 +14,8 @@ import {
 import { Add as AddIcon, Security as SecurityIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import DataTable from '../components/DataTable';
-import UserForm from '../components/Forms/UserForm';
 import PermissionsDialog from '../components/dialogs/PermissionsDialog';
+import UserForm from '../components/forms/UserForm';
 import { getAll, create, updatePermissions, deleteUser } from '../services/userService';
 
 const Users = () => {
@@ -113,11 +113,15 @@ return i.role === 'user'
   const handleSubmit = async (values) => {
     try {
       const response = await create(values);
-      setUsers((prevUsers) => [...prevUsers, response.data.data]);
-      setIsDialogOpen(false);
+      if (response.data.success) {
+        setUsers((prevUsers) => [...prevUsers, response.data.data]);
+        setIsDialogOpen(false);
+        enqueueSnackbar('User created successfully', { variant: 'success' });
+      } else {
+        throw new Error(response.data.message);
+      }
     } catch (error) {
-      setError('Failed to add user. Please try again.');
-      console.error('Error adding user:', error);
+      throw error;
     }
   };
 

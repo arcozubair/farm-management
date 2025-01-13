@@ -29,6 +29,7 @@ import {
   PointOfSale as SalesIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Book as BookIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -53,8 +54,11 @@ const MainLayout = ({ children }) => {
     { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { path: '/livestock', label: 'Livestock', icon: LivestockIcon },
     { path: '/products', label: 'Products', icon: ProductsIcon },
+    { path: '/customers', label: 'Customers', icon: PeopleIcon, role: 'admin' },
     { path: '/sales', label: 'Sales', icon: SalesIcon },
+    { path: '/daybook', label: 'Day Book', icon: BookIcon, role: 'admin' },
     { path: '/users', label: 'Users', icon: PeopleIcon, role: 'admin' },
+
   ];
 
   const handleDrawerToggle = () => {

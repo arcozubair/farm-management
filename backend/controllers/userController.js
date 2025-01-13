@@ -19,10 +19,27 @@ exports.getAllUsers = async (req, res) => {
 // Create a new user (admin only)
 exports.createEmployee = async (req, res) => {
   try {
-    const { username, password, name, email, role, permissions } = req.body;
+    const { username, email } = req.body;
     
-    console.log('Creating user with permissions:', permissions); // Debug log
+    // Check if username exists
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username already exists'
+      });
+    }
 
+    // Check if email exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      });
+    }
+
+    const { password, name, role, permissions } = req.body;
     const userPermissions = permissions || {};
 
     const newUser = new User({
@@ -35,17 +52,17 @@ exports.createEmployee = async (req, res) => {
     });
 
     await newUser.save();
-    console.log('Saved user with permissions:', newUser.permissions); // Debug log
 
     res.status(201).json({
       success: true,
       data: newUser,
+      message: 'User created successfully'
     });
   } catch (error) {
-    console.error('Error creating user:', error); // Debug log
+    console.error('Error creating user:', error);
     res.status(500).json({
       success: false,
-      message: 'Server Error',
+      message: error.message || 'Server Error'
     });
   }
 };
