@@ -24,12 +24,14 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  InputAdornment
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import SearchIcon from '@mui/icons-material/Search';
 import customerService from '../services/customerService';
 import CustomerLedger from '../components/CustomerLedger';
 import { DatePicker } from '@mui/x-date-pickers';
@@ -57,6 +59,7 @@ const Customers = () => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchCustomers = async () => {
     try {
@@ -182,33 +185,53 @@ const Customers = () => {
     }
   };
 
+  // Filter customers based on search query
+  const filteredCustomers = customers.filter(customer => 
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.contactNumber.includes(searchQuery) ||
+    customer.address.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Box sx={{ p: 4, backgroundColor: '#f5f5f7' }}>
       <Grid container spacing={3}>
-        <Grid item xs={12} sx={{ mb: 3 }}>
-          <Grid container justifyContent="space-between" alignItems="center">
-            <Grid item>
+        <Grid item xs={12}>
+          <Grid container justifyContent="space-between" alignItems="center" spacing={2}>
+            <Grid item xs={12} md={4}>
               <Typography 
                 variant="h4" 
                 sx={{ 
                   fontWeight: 600,
-                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent'
+                  
+                  color: 'primary.main'
                 }}
               >
                 Customers
               </Typography>
             </Grid>
-            <Grid item>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search customers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '12px' }
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 variant="contained"
                 onClick={() => setOpenDialog(true)}
                 sx={{
-                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
                   borderRadius: '8px',
-                  boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
                   color: 'white',
                   padding: '8px 24px',
                 }}
@@ -240,62 +263,75 @@ const Customers = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {customers.map((customer) => (
-                  <TableRow 
-                    key={customer._id}
-                    sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}
-                  >
-                    <TableCell>{customer.name}</TableCell>
-                    <TableCell>{customer.contactNumber}</TableCell>
-                    <TableCell>{customer.address}</TableCell>
-                    <TableCell>
-                      {customer.whatsappNotification ? (
-                        <Typography 
-                          sx={{ 
-                            color: 'success.main',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
-                          }}
-                        >
-                          <WhatsAppIcon fontSize="small" /> Enabled
-                        </Typography>
-                      ) : (
-                        <Typography color="text.secondary">Disabled</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Typography 
-                        sx={{ 
-                          color: customer.currentBalance >= 0 ? 'success.main' : 'error.main',
-                          fontWeight: 500 
-                        }}
-                      >
-                        ₹{customer.currentBalance}
+                {filteredCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                      <Typography color="textSecondary">
+                        No customers found matching your search
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      <IconButton 
-                        onClick={() => handleEdit(customer)}
-                        sx={{ 
-                          color: 'primary.main',
-                          '&:hover': { backgroundColor: 'primary.light' }
-                        }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton 
-                        onClick={() => handleViewLedger(customer)}
-                        sx={{ 
-                          color: 'secondary.main',
-                          '&:hover': { backgroundColor: 'secondary.light' }
-                        }}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <TableRow 
+                      key={customer._id}
+                      sx={{ 
+                        '&:hover': { 
+                          backgroundColor: '#f5f5f5',
+                          transition: 'background-color 0.2s ease'
+                        }
+                      }}
+                    >
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.contactNumber}</TableCell>
+                      <TableCell>{customer.address}</TableCell>
+                      <TableCell>
+                        {customer.whatsappNotification ? (
+                          <Typography 
+                            sx={{ 
+                              color: 'success.main',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}
+                          >
+                            <WhatsAppIcon fontSize="small" /> Enabled
+                          </Typography>
+                        ) : (
+                          <Typography color="text.secondary">Disabled</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography 
+                          sx={{ 
+                            color: customer.currentBalance >= 0 ? 'success.main' : 'error.main',
+                            fontWeight: 500 
+                          }}
+                        >
+                          ₹{customer.currentBalance.toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          startIcon={<EditIcon />}
+                          onClick={() => handleEdit(customer)}
+                          sx={{ mr: 1 }}
+                          size="small"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewLedger(customer)}
+                          color="secondary"
+                          size="small"
+                        >
+                          Ledger
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>
