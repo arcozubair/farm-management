@@ -4,6 +4,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const config = require('./config/config');
 const errorHandler = require('./middleware/error');
+const productRoutes = require('./routes/productRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const { initializeProducts } = require('./controllers/productController');
 
 // Initialize express
 const app = express();
@@ -18,22 +21,41 @@ app.use(cors({
 }));
 app.use(morgan('dev'));
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 // Database connection
-mongoose.connect(config.MONGO_URI)
-  .then(() => console.log('MongoDB Connected...'))
+mongoose.connect(config.MONGODB_URI)
+  .then(async () => {
+    console.log('MongoDB Connected...');
+    // Initialize products after DB connection
+    await initializeProducts();
+  })
   .catch(err => console.log('MongoDB Connection Error:', err));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/customers', require('./routes/customers'));
+app.use('/api/customers', customerRoutes);
 app.use('/api/livestock', require('./routes/livestock'));
-app.use('/api/products', require('./routes/products'));
+app.use('/api/products', productRoutes);
 app.use('/api/sales', require('./routes/sales'));
 app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/daybook', require("./routes/dayBookRoutes"));
 
 // Error handling middleware
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Server Error',
+    error: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
 
 // Handle unhandled routes
 app.use('*', (req, res) => {
@@ -45,7 +67,7 @@ app.use('*', (req, res) => {
 
 // Start server
 const PORT = config.PORT;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running in ${config.NODE_ENV} mode on port ${PORT}`);
 });
 

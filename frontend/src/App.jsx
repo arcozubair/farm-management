@@ -12,6 +12,8 @@ import Users from './pages/Users';
 import Unauthorized from './pages/Unauthorized';
 import Profile from './pages/Profile';
 import { createTheme, ThemeProvider } from '@mui/material';
+import DayBook from './pages/DayBook';
+import CustomerLedger from './components/customer/CustomerLedger';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -74,6 +76,15 @@ s
               </ProtectedRoute>
             }
           />
+           <Route
+            path="/daybook"
+            element={
+              <ProtectedRoute>
+                <DayBook />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* Admin Only Routes */}
           <Route
@@ -104,6 +115,7 @@ s
           />
 
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/customers/:customerId/ledger" element={<CustomerLedger />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     </ThemeProvider>

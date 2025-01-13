@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
+import { useSnackbar } from 'notistack';
 
 const validationSchema = Yup.object({
   username: Yup.string().required('Username is required'),
@@ -30,6 +31,8 @@ const PERMISSION_OPTIONS = [
 ];
 
 const UserForm = ({ onSubmit, onClose }) => {
+  const { enqueueSnackbar } = useSnackbar();
+
   const formik = useFormik({
     initialValues: {
       username: '',
@@ -48,8 +51,15 @@ const UserForm = ({ onSubmit, onClose }) => {
     },
     validationSchema,
     onSubmit: async (values) => {
-      await onSubmit(values);
-      formik.resetForm();
+      try {
+        await onSubmit(values);
+        enqueueSnackbar('User created successfully', { variant: 'success' });
+        formik.resetForm();
+        onClose();
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || 'Failed to create user';
+        enqueueSnackbar(errorMessage, { variant: 'error' });
+      }
     },
   });
 
