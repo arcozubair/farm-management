@@ -329,3 +329,32 @@ exports.getDailyStockReport = async (req, res) => {
     });
   }
 }; 
+exports.updatePrice = async (req, res) => {
+  try {
+    const { id, price } = req.body;
+    
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { price },
+      { new: true, runValidators: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    console.error('Error updating price:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to update price'
+    });
+  }
+};

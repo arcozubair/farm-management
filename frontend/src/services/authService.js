@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { enqueueSnackbar } from 'notistack';
 
-const API_URL = 'http://localhost:5000/api';
+import api from './api';
+
+const API_URL = 'auth';
 
 export const login = async (credentials) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, credentials);
+    const response = await api.post(`${API_URL}/login`, credentials);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       enqueueSnackbar('Successfully logged in!', { variant: 'success' });
@@ -30,7 +32,7 @@ export const logout = () => {
 
 export const register = async (userData) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register`, userData);
+    const response = await api.post(`${API_URL}/auth/register`, userData);
     enqueueSnackbar('Registration successful!', { variant: 'success' });
     return response.data;
   } catch (error) {
@@ -43,7 +45,7 @@ export const register = async (userData) => {
 
 export const forgotPassword = async (email) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/forgot-password`, { email });
+    const response = await api.post(`${API_URL}/forgot-password`, { email });
     enqueueSnackbar('Password reset instructions sent to your email', { 
       variant: 'success' 
     });
@@ -58,7 +60,7 @@ export const forgotPassword = async (email) => {
 
 export const resetPassword = async (token, newPassword) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/reset-password`, {
+    const response = await api.post(`${API_URL}/reset-password`, {
       token,
       newPassword
     });
@@ -74,12 +76,9 @@ export const resetPassword = async (token, newPassword) => {
 
 export const changePassword = async (passwords) => {
   try {
-    const response = await axios.post(
-      `${API_URL}/auth/change-password`,
-      passwords,
-      {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      }
+    const response = await api.post(
+      `${API_URL}/change-password`,
+      passwords
     );
     enqueueSnackbar('Password successfully changed!', { variant: 'success' });
     return response.data;
@@ -114,7 +113,7 @@ export const authService = {
 
   login: async (username, password) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { username, password });
+      const response = await api.post(`${API_URL}/login`, { username, password });
       console.log('Auth service login response:', response); // Debug log
       return response;
     } catch (error) {

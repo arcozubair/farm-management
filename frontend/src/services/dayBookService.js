@@ -1,18 +1,12 @@
-import axios from 'axios';
+import api from './api';
 
-const API_URL = 'http://localhost:5000/api/daybook';
+const API_URL = '/daybook';
 
-const getAuthHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('token')}`
-  }
-});
 
 const dayBookService = {
   getEntries: async (date) => {
     try {
-      const response = await axios.get(`${API_URL}`, {
-        ...getAuthHeader(),
+      const response = await api.get(`${API_URL}`, {
         params: { date }
       });
       return response.data;
@@ -23,10 +17,10 @@ const dayBookService = {
 
   addCollection: async (collectionData) => {
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `${API_URL}/collection`, 
         collectionData, 
-        getAuthHeader()
+       
       );
       
       if (!response.data.success) {
@@ -43,10 +37,10 @@ const dayBookService = {
 
   addTransaction: async (transactionData) => {
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `${API_URL}/transaction`, 
         transactionData, 
-        getAuthHeader()
+       
       );
       return response.data;
     } catch (error) {

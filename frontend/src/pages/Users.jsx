@@ -16,7 +16,7 @@ import { useSnackbar } from 'notistack';
 import DataTable from '../components/DataTable';
 import PermissionsDialog from '../components/dialogs/PermissionsDialog';
 import UserForm from '../components/forms/UserForm';
-import { getAll, create, updatePermissions, deleteUser } from '../services/userService';
+import * as userService from '../services/userService';
 
 const Users = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -44,7 +44,7 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await getAll();
+      const response = await userService.getAll();
       const filterdUsers = response.data.data.filter((i)=>{
 return i.role === 'user'
       })
@@ -139,7 +139,7 @@ return i.role === 'user'
   const handlePermissionsUpdate = async () => {
     try {
       console.log('Updating permissions for:', selectedUser._id); // Debug log
-      const response = await updatePermissions(selectedUser._id, userPermissions);
+      const response = await userService.updatePermissions(selectedUser._id, userPermissions);
       
       if (response.data.success) {
         setUsers(users.map(user => 

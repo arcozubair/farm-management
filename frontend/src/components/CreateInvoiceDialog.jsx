@@ -26,8 +26,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '@mui/material/styles';
-import {getAllProducts} from '../services/productService';
-import {getAllLivestock} from '../services/livestockService';
+import * as productService from '../services/productService';
+import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
 
 
@@ -83,8 +83,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       setError('');
       try {
         const [productsResponse, livestockResponse] = await Promise.all([
-          getAllProducts(),
-          getAllLivestock()
+          productService.getAllProducts(),
+          livestockService.getAllLivestock()
         ]);
 
         const productsArray = productsResponse?.data || [];

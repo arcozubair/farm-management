@@ -1,18 +1,12 @@
-import axios from 'axios';
+import api from './api';
+const API_URL = '/livestock';
 
-const API_URL = 'http://localhost:5000/api/livestock';
 
-// Get token from localStorage
-const getAuthHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('token')}`
-  }
-});
 
 // Export individual functions
 export const getAllLivestock = async () => {
   try {
-    const response = await axios.get(API_URL, getAuthHeader());
+    const response = await api.get(API_URL, );
     console.log('Service response:', response); // Debug log
     return response;
   } catch (error) {
@@ -22,18 +16,18 @@ export const getAllLivestock = async () => {
 };
 
 export const addLivestock = async (livestockData) => {
-  const response = await axios.post(API_URL, livestockData, getAuthHeader());
+  const response = await api.post(API_URL, livestockData, );
   return response.data;
 };
 
 export const updateLivestock = async (id, updateData) => {
-  const response = await axios.put(`${API_URL}/${id}`, updateData, getAuthHeader());
+  const response = await api.put(`${API_URL}/${id}`, updateData, );
   return response.data;
 };
 
 export const deleteLivestock = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
+    const response = await api.delete(`${API_URL}/${id}`, );
     return response.data;
   } catch (error) {
     throw error;
@@ -41,7 +35,7 @@ export const deleteLivestock = async (id) => {
 };
 
 export const getLivestockStats = async () => {
-  const response = await axios.get(`${API_URL}/stats`, getAuthHeader());
+  const response = await api.get(`${API_URL}/stats`, );
   return response.data;
 };
 

@@ -33,7 +33,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { updatePassword } from '../services/userService';
+import * as userService from '../services/userService';
 import { useSnackbar } from 'notistack';
 
 const Profile = () => {
@@ -72,7 +72,7 @@ const Profile = () => {
     onSubmit: async (values, { resetForm }) => {
       try {
         setLoading(true);
-        await updatePassword({
+        await userService.updatePassword({
           currentPassword: values.currentPassword,
           newPassword: values.newPassword,
         });

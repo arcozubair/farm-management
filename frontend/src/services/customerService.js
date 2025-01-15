@@ -1,29 +1,11 @@
-import axios from 'axios';
+import api from './api';
+const API_URL = '/customers';
 
-const BASE_URL = '/api/customers';
-
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error('Authentication token not found');
-  }
-  return {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  };
-};
-
-const formatDate = (date) => {
-  if (!date) return null;
-  return new Date(date).toISOString().split('T')[0];
-};
 
 const customerService = {
   getCustomers: async () => {
     try {
-      const response = await axios.get(BASE_URL, getAuthHeader());
+      const response = await api.get(API_URL);
       return response.data;
     } catch (error) {
       console.error('Error in getCustomers:', error.response?.data || error);
@@ -33,7 +15,7 @@ const customerService = {
 
   getCustomerById: async (id) => {
     try {
-      const response = await axios.get(`${BASE_URL}/${id}`, getAuthHeader());
+      const response = await api.get(`${API_URL}/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error in getCustomerById:', error.response?.data || error);
@@ -43,7 +25,7 @@ const customerService = {
 
   addCustomer: async (customerData) => {
     try {
-      const response = await axios.post(BASE_URL, customerData, getAuthHeader());
+      const response = await api.post(API_URL, customerData);
       return response.data;
     } catch (error) {
       console.error('Error in addCustomer:', error.response?.data || error);
@@ -53,7 +35,7 @@ const customerService = {
 
   updateCustomer: async (id, customerData) => {
     try {
-      const response = await axios.put(`${BASE_URL}/${id}`, customerData, getAuthHeader());
+      const response = await api.put(`${API_URL}/${id}`, customerData);
       return response.data;
     } catch (error) {
       console.error('Error in updateCustomer:', error.response?.data || error);
@@ -67,14 +49,14 @@ const customerService = {
         throw new Error('Customer ID is required');
       }
 
-      let url = `${BASE_URL}/${customerId}/ledger`;
+      let url = `${API_URL}/${customerId}/ledger`;
       
       if (dateRange?.startDate && dateRange?.endDate) {
        
         url += `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
       }
       
-      const response = await axios.get(url, getAuthHeader());
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       console.error('Error in getCustomerLedger:', {
@@ -89,8 +71,8 @@ const customerService = {
 
   searchCustomers: async (searchText) => {
     try {
-      const response = await axios.get(`${BASE_URL}/search`, {
-        ...getAuthHeader(),
+      const response = await api.get(`${API_URL}/search`, {
+       
         params: { q: searchText }
       });
       return response.data;
@@ -99,28 +81,6 @@ const customerService = {
       throw error.response?.data || error;
     }
   },
-
-  getProducts: async () => {
-    try {
-      const response = await fetch('/api/products');
-      if (!response.ok) throw new Error('Failed to fetch products');
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      throw error;
-    }
-  },
-
-  getLivestock: async () => {
-    try {
-      const response = await fetch('/api/livestock');
-      if (!response.ok) throw new Error('Failed to fetch livestock');
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching livestock:', error);
-      throw error;
-    }
-  }
 };
 
 export default customerService;

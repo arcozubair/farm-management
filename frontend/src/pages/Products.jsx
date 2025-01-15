@@ -12,15 +12,18 @@ import {
   Container,
   Fade,
   IconButton,
-  Tooltip
+  Tooltip,
+  useMediaQuery
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LocalDrinkIcon from '@mui/icons-material/LocalDrink';
 import EggIcon from '@mui/icons-material/EggAlt';
 import ProductList from '../components/ProductList';
-import { productService } from '../services/productService';
+import  * as  productService  from '../services/productService';
 import { useSnackbar } from 'notistack';
+import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
+import PriceManagementDialog from '../components/PriceManagementDialog';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -33,6 +36,8 @@ const Products = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const theme = useTheme();
+  const [openPriceDialog, setOpenPriceDialog] = useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     fetchProducts();
@@ -82,20 +87,21 @@ const Products = () => {
     setRefreshing(false);
   };
 
-  const getTotalStock = () => {
-    return products.reduce((acc, product) => acc + product.currentStock, 0);
-  };
 
-  const getStockValue = () => {
-    // Example price calculation - adjust according to your needs
-    const prices = {
-      milk: 50, // price per liter
-      eggs: 6   // price per piece
-    };
-    
-    return products.reduce((acc, product) => {
-      return acc + (product.currentStock * prices[product.type]);
-    }, 0);
+
+  const handleUpdatePrices = async (prices) => {
+    try {
+      setLoading(true);
+      await productService.updateProductPrices(prices);
+      // Refresh the products list
+      await fetchProducts();
+      enqueueSnackbar('Prices updated successfully', { variant: 'success' });
+    } catch (error) {
+      console.error('Error updating prices:', error);
+      enqueueSnackbar(error.message || 'Failed to update prices', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -117,28 +123,37 @@ const Products = () => {
     <Fade in={!loading}>
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Header Section */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
             Product Management
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Tooltip title="Refresh">
               <IconButton onClick={handleRefresh} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
                 <RefreshIcon sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
               </IconButton>
             </Tooltip>
             <Button
+              variant="outlined"
+              startIcon={isMobile ? null : <CurrencyRupeeIcon />}
+              onClick={() => setOpenPriceDialog(true)}
+              sx={{ minWidth: isMobile ? 'auto' : undefined }}
+            >
+              {isMobile ? <CurrencyRupeeIcon /> : 'Manage Prices'}
+            </Button>
+            <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={isMobile ? null : <AddIcon />}
               onClick={() => setOpenAddDialog(true)}
               sx={{
                 borderRadius: 2,
                 textTransform: 'none',
-                px: 3,
+                px: isMobile ? 2 : 3,
+                minWidth: isMobile ? 'auto' : undefined,
                 boxShadow: 2
               }}
             >
-              Add Product
+              {isMobile ? <AddIcon /> : 'Add Product'}
             </Button>
           </Box>
         </Box>
@@ -286,6 +301,14 @@ const Products = () => {
             }}
           />
         )} */}
+
+        <PriceManagementDialog
+          open={openPriceDialog}
+          onClose={() => setOpenPriceDialog(false)}
+          items={products}
+          onUpdatePrices={handleUpdatePrices}
+          type="Product"
+        />
       </Container>
     </Fade>
   );
