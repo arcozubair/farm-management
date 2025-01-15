@@ -34,6 +34,9 @@ import customerService from '../services/customerService';
 import Receipt from '../components/Receipt';
 import { Print as PrintIcon, Search as SearchIcon } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
+import AddSaleDialog from '../components/AddSaleDialog';
+import AddIcon from '@mui/icons-material/Add';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 
 const determineShift = () => {
   const currentHour = new Date().getHours();
@@ -68,6 +71,7 @@ const DayBook = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState('');
   const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchDayBook();
@@ -214,6 +218,21 @@ const DayBook = () => {
     setShowReceipt(true);
   };
 
+  const actions = [
+    {
+      icon: <AddIcon />,
+      label: 'Add Transaction',
+      onClick: () => setTransactionDialogOpen(true),
+      color: 'primary'
+    },
+    {
+      icon: <ReceiptIcon />,
+      label: 'Add Sale',
+      onClick: () => setSaleDialogOpen(true),
+      color: 'success'
+    }
+  ];
+
   return (
     <Box sx={{ p: 3 }}>
       <Grid container spacing={3}>
@@ -248,8 +267,17 @@ const DayBook = () => {
                   setDialogType('transaction');
                   setOpenDialog(true);
                 }}
+                sx={{ mr: 1 }}
               >
                 Add Transaction
+              </Button>
+              <Button 
+                variant="contained"
+                color="success"
+                startIcon={<ReceiptIcon />}
+                onClick={() => setSaleDialogOpen(true)}
+              >
+                Add Sale
               </Button>
             </Grid>
           </Grid>
@@ -596,6 +624,11 @@ const DayBook = () => {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         transactionData={selectedTransaction}
+      />
+
+      <AddSaleDialog
+        open={saleDialogOpen}
+        onClose={() => setSaleDialogOpen(false)}
       />
     </Box>
   );
