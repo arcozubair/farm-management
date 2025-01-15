@@ -37,6 +37,10 @@ import CustomerLedger from '../components/CustomerLedger';
 import { DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import { useNavigate } from 'react-router-dom';
+import CreateInvoiceDialog from '../components/CreateInvoiceDialog';
 
 const Customers = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -60,6 +64,8 @@ const Customers = () => {
   const [endDate, setEndDate] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const fetchCustomers = async () => {
     try {
@@ -192,6 +198,40 @@ const Customers = () => {
     customer.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleCreateInvoice = (customer) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    setSelectedCustomer(customer);
+    setInvoiceDialogOpen(true);
+  };
+
+  const handleCloseInvoiceDialog = () => {
+    setInvoiceDialogOpen(false);
+    setSelectedCustomer(null);
+  };
+
+  const actions = [
+    {
+      icon: <EditIcon />,
+      name: 'Edit',
+      handler: handleEdit,
+      color: 'primary'
+    },
+    {
+      icon: <AccountBalanceIcon />,
+      name: 'View Ledger',
+      handler: handleViewLedger,
+      color: 'info'
+    },
+    {
+      icon: <ReceiptIcon />,
+      name: 'Create Invoice',
+      handler: handleCreateInvoice,
+      color: 'success'
+    }
+  ];
+
   return (
     <Box sx={{ p: 4, backgroundColor: '#f5f5f7' }}>
       <Grid container spacing={3}>
@@ -312,22 +352,18 @@ const Customers = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          startIcon={<EditIcon />}
-                          onClick={() => handleEdit(customer)}
-                          sx={{ mr: 1 }}
-                          size="small"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          startIcon={<VisibilityIcon />}
-                          onClick={() => handleViewLedger(customer)}
-                          color="secondary"
-                          size="small"
-                        >
-                          Ledger
-                        </Button>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          {actions.map((action) => (
+                            <IconButton
+                              key={action.name}
+                              color={action.color}
+                              onClick={() => action.handler(customer)}
+                              title={action.name}
+                            >
+                              {action.icon}
+                            </IconButton>
+                          ))}
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -648,6 +684,12 @@ const Customers = () => {
           )}
         </Box>
       )}
+
+      <CreateInvoiceDialog
+        open={invoiceDialogOpen}
+        onClose={handleCloseInvoiceDialog}
+        customer={selectedCustomer}
+      />
     </Box>
   );
 };

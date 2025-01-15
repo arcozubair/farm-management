@@ -98,6 +98,28 @@ const customerService = {
       console.error('Error in searchCustomers:', error.response?.data || error);
       throw error.response?.data || error;
     }
+  },
+
+  getProducts: async () => {
+    try {
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+  },
+
+  getLivestock: async () => {
+    try {
+      const response = await fetch('/api/livestock');
+      if (!response.ok) throw new Error('Failed to fetch livestock');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching livestock:', error);
+      throw error;
+    }
   }
 };
 

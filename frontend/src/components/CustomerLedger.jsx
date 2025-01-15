@@ -29,6 +29,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PaymentsIcon from '@mui/icons-material/Payments';
+import PrintIcon from '@mui/icons-material/Print';
 import customerService from '../services/customerService';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
@@ -88,13 +89,163 @@ const CustomerLedger = ({ open, onClose, customer }) => {
 
   // Calculate totals by payment mode
   const calculatePaymentModeTotals = (transactions) => {
-    return transactions?.reduce((acc, trans) => ({
-      cash: acc.cash + (trans.modeOfPayment === 'cash' ? trans.amount : 0),
-      account_transfer: acc.account_transfer + (trans.modeOfPayment === 'account_transfer' ? trans.amount : 0)
-    }), { cash: 0, account_transfer: 0 }) || { cash: 0, account_transfer: 0 };
+    if (!transactions || !Array.isArray(transactions)) {
+      return { cash: 0, account_transfer: 0 };
+    }
+
+    return transactions.reduce((acc, trans) => ({
+      cash: acc.cash + (trans.modeOfPayment === 'cash' ? parseFloat(trans.amount) || 0 : 0),
+      account_transfer: acc.account_transfer + (trans.modeOfPayment === 'account_transfer' ? parseFloat(trans.amount) || 0 : 0)
+    }), { cash: 0, account_transfer: 0 });
   };
 
   const paymentTotals = calculatePaymentModeTotals(ledgerData?.transactions);
+
+  const handlePrint = () => {
+    // Create a new window for the print layout
+    const printWindow = window.open('', '_blank');
+    
+    // Generate the print content with proper formatting
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Customer Ledger - ${customer?.name}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              line-height: 1.6;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #333;
+            }
+            .customer-info {
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f4f4f4;
+            }
+            .summary {
+              margin-top: 20px;
+              border-top: 2px solid #333;
+              padding-top: 10px;
+            }
+            .text-right {
+              text-align: right;
+            }
+            .total-row {
+              font-weight: bold;
+              background-color: #f4f4f4;
+            }
+            @media print {
+              @page {
+                size: landscape;
+                margin: 1cm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>Customer Ledger</h2>
+            <p>Period: ${formatDate(startDate)} to ${formatDate(endDate)}</p>
+          </div>
+          
+          <div class="customer-info">
+            <h3>Customer Details</h3>
+            <p><strong>Name:</strong> ${ledgerData.customerInfo.name}</p>
+            <p><strong>Contact:</strong> ${ledgerData.customerInfo.contactNumber}</p>
+            <p><strong>Address:</strong> ${ledgerData.customerInfo.address}</p>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Transaction Number</th>
+                <th>Description</th>
+                <th class="text-right">Debit (DR)</th>
+                <th class="text-right">Credit (CR)</th>
+                <th class="text-right">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${formatDate(startDate)}</td>
+                <td>-</td>
+                <td>Opening Balance</td>
+                <td class="text-right">-</td>
+                <td class="text-right">-</td>
+                <td class="text-right">${formatCurrency(ledgerData.customerInfo.openingBalance)}</td>
+              </tr>
+              ${ledgerData.transactions
+                .sort((a, b) => ensureValidDate(a.date) - ensureValidDate(b.date))
+                .map((transaction, index, array) => {
+                  const previousTransactions = array.slice(0, index);
+                  const totalPreviousAmount = previousTransactions.reduce(
+                    (sum, t) => sum + (parseFloat(t.amount) || 0), 
+                    0
+                  );
+                  const runningBalance = ledgerData.customerInfo.openingBalance - 
+                    totalPreviousAmount - (parseFloat(transaction.amount) || 0);
+                  
+                  return `
+                    <tr>
+                      <td>${(transaction.date)}</td>
+                      <td>${transaction.transactionNumber}</td>
+                      <td>Payment via ${transaction.modeOfPayment.replace('_', ' ')}</td>
+                      <td class="text-right">${formatCurrency(transaction.amount)}</td>
+                      <td class="text-right">-</td>
+                      <td class="text-right">${formatCurrency(runningBalance)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+            
+            </tbody>
+          </table>
+
+          <div class="summary" style="display: flex; justify-content: space-between; flex-wrap: wrap;">
+            <h3 style="width: 100%;">Payment Mode Summary</h3>
+            <div style="flex: 1; margin-right: 20px;">
+              <p><strong>Cash Payments:</strong> ${formatCurrency(paymentTotals.cash)}</p>
+              <p><strong>Account Transfers:</strong> ${formatCurrency(paymentTotals.account_transfer)}</p>
+            </div>
+            <div style="flex: 1;">
+              <p><strong>Total Transactions:</strong> ${ledgerData.summary.totalTransactions}</p>
+              <p><strong>Closing Balance:</strong> ${ledgerData.summary.closingBalance}</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Write the content to the new window and print
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for all content to load before printing
+    printWindow.onload = function() {
+      printWindow.print();
+      // Close the window after printing (optional)
+      printWindow.onafterprint = function() {
+        printWindow.close();
+      };
+    };
+  };
 
   return (
     <Dialog 
@@ -109,15 +260,22 @@ const CustomerLedger = ({ open, onClose, customer }) => {
           <Typography variant="h6">
             Customer Ledger - {customer?.name}
           </Typography>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
+          <Box>
+            {ledgerData && (
+              <IconButton onClick={handlePrint} sx={{ mr: 1 }} title="Print Ledger">
+                <PrintIcon />
+              </IconButton>
+            )}
+            <IconButton onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </Box>
       </DialogTitle>
 
-      <DialogContent dividers>
+      <DialogContent dividers id="ledger-content">
         {/* Date Selection */}
-        <Box mb={3}>
+        <Box mb={3} className="no-print">
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
