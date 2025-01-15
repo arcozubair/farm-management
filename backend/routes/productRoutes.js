@@ -1,18 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const productController = require('../controllers/productController');
+const { 
+  getAllProducts, 
+  createProduct, 
+  updateProduct, 
+  deleteProduct,
+  updateStock,
+  getProductDetails,
+  updatePrice
+} = require('../controllers/productController');
 
-// Existing routes
-router.get('/', protect, productController.getAllProducts);
-router.post('/', protect, productController.createProduct);
-router.put('/:id', protect, productController.updateProduct);
-router.delete('/:id', protect, productController.deleteProduct);
+// Route order matters! Put specific routes before parameterized routes
+router.post('/update-price', protect, updatePrice);
+router.post('/updateStock', protect, updateStock);
+router.get('/details', protect, getProductDetails);
 
-// Add the new updateStock route
-router.post('/updateStock', protect, productController.updateStock);
+router.route('/')
+  .get(protect, getAllProducts)
+  .post(protect, createProduct);
 
-// Add this new route
-router.get('/details', protect, productController.getProductDetails);
+router.route('/:id')
+  .put(protect, updateProduct)
+  .delete(protect, deleteProduct);
 
 module.exports = router; 

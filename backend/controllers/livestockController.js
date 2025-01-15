@@ -142,4 +142,25 @@ exports.getLivestockStats = async (req, res) => {
       error: 'Server Error'
     });
   }
+};
+
+exports.updatePrice = async (req, res) => {
+  try {
+    const { id, price } = req.body;
+    const livestock = await Livestock.findByIdAndUpdate(
+      id,
+      { price },
+      { new: true }
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: livestock
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
 }; 

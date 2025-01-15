@@ -10,6 +10,7 @@ import {
   Grid,
   IconButton,
   Typography,
+  MenuItem,
 } from '@mui/material';
 import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 
@@ -118,17 +119,24 @@ const InvoiceForm = ({ open, onClose, onSubmit, customers, livestock, products }
                       name={`items.${index}.item`}
                       label="Item"
                       value={item.item}
-                      onChange={formik.handleChange}
+                      onChange={(e) => {
+                        const selectedItem = item.itemType === 'livestock' 
+                          ? livestock.find(l => l._id === e.target.value)
+                          : products.find(p => p._id === e.target.value);
+                        
+                        formik.setFieldValue(`items.${index}.item`, e.target.value);
+                        formik.setFieldValue(`items.${index}.unitPrice`, selectedItem?.price || 0);
+                      }}
                     >
                       {item.itemType === 'livestock'
                         ? livestock.map((l) => (
                             <MenuItem key={l._id} value={l._id}>
-                              {l.type} - {l.gender}
+                              {l.type} - {l.gender} (Rate: ${l.price})
                             </MenuItem>
                           ))
                         : products.map((p) => (
                             <MenuItem key={p._id} value={p._id}>
-                              {p.type}
+                              {p.type} (Rate: ${p.price})
                             </MenuItem>
                           ))}
                     </TextField>

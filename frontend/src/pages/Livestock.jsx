@@ -24,6 +24,8 @@ import {
   Collapse,
   Card,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -32,8 +34,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useSnackbar } from 'notistack';
-import * as livestockService from '../services/livestockService';
+import livestockService from '../services/livestockService';
 import { useAuth } from '../context/AuthContext';
+import PriceManagementDialog from '../components/PriceManagementDialog';
+import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
 
 // Styled components for modern look
 const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
@@ -249,6 +253,9 @@ const Livestock = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [livestockToDelete, setLivestockToDelete] = useState(null);
   const [existingQuantity, setExistingQuantity] = useState(0);
+  const [openPriceDialog, setOpenPriceDialog] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const categories = {
     cattle: [
@@ -434,6 +441,22 @@ console.log("user permissions", user);
     return acc;
   }, {});
 
+  const handleUpdatePrices = async (prices) => {
+    try {
+      setLoading(true);
+      await livestockService.updateLivestockPrices(prices);
+      // Refresh the livestock list
+      await fetchLivestock();
+      enqueueSnackbar('Prices updated successfully', { variant: 'success' });
+    } catch (error) {
+      console.error('Error updating prices:', error);
+      enqueueSnackbar(error.message || 'Failed to update prices', { variant: 'error' });
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <StyledCard>
@@ -441,7 +464,9 @@ console.log("user permissions", user);
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          mb: 3 
+          mb: 3,
+          flexWrap: 'wrap',
+          gap: 2
         }}>
           <Typography 
             variant="h4" 
@@ -452,20 +477,31 @@ console.log("user permissions", user);
           >
             Livestock Management
           </Typography>
-          {userPermissions.canCreate && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                px: 3
-              }}
+              variant="outlined"
+              startIcon={isMobile ? null : <CurrencyRupeeIcon />}
+              onClick={() => setOpenPriceDialog(true)}
+              sx={{ minWidth: isMobile ? 'auto' : undefined }}
             >
-              Add Livestock
+              {isMobile ? <CurrencyRupeeIcon /> : 'Manage Prices'}
             </Button>
-          )}
+            {userPermissions.canCreate && (
+              <Button
+                variant="contained"
+                startIcon={isMobile ? null : <AddIcon />}
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  px: isMobile ? 2 : 3,
+                  minWidth: isMobile ? 'auto' : undefined
+                }}
+              >
+                {isMobile ? <AddIcon /> : 'Add Livestock'}
+              </Button>
+            )}
+          </Box>
         </Box>
         <Divider sx={{ mb: 3 }} />
 
@@ -621,6 +657,14 @@ console.log("user permissions", user);
           </Button>
         </DialogActions>
       </Dialog>
+
+      <PriceManagementDialog
+        open={openPriceDialog}
+        onClose={() => setOpenPriceDialog(false)}
+        items={livestock}
+        onUpdatePrices={handleUpdatePrices}
+        type="Livestock"
+      />
     </Box>
   );
 };

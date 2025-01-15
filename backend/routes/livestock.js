@@ -5,7 +5,8 @@ const {
   addLivestock,
   updateLivestock,
   deleteLivestock,
-  getLivestockStats
+  getLivestockStats,
+  updatePrice
 } = require('../controllers/livestockController');
 const { protect, checkPermission } = require('../middleware/auth');
 
@@ -22,5 +23,7 @@ router
   .delete(checkPermission('canDelete'), deleteLivestock);
 
 router.get('/stats', getLivestockStats);
+
+router.post('/update-price', protect, updatePrice);
 
 module.exports = router; 

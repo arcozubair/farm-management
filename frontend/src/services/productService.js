@@ -1,21 +1,12 @@
-import axios from 'axios';
-const API_URL = 'http://localhost:5000/api/products';
+import api from './api';
+const API_URL = 'products';
 
 
-// Get auth header
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
-};
 
 // Get all products
 export const getAllProducts = async () => {
   try {
-    const response = await axios.get(API_URL, getAuthHeader());
+    const response = await api.get(API_URL, );
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to fetch products' };
@@ -25,8 +16,8 @@ export const getAllProducts = async () => {
 // Get product details
 export const getProductDetails = async (date) => {
   try {
-    const response = await axios.get(`${API_URL}/details`, {
-      ...getAuthHeader(),
+    const response = await api.get(`${API_URL}/details`, {
+      
       params: { date }
     });
     return response.data;
@@ -38,7 +29,7 @@ export const getProductDetails = async (date) => {
 // Add product
 export const addProduct = async (productData) => {
   try {
-    const response = await axios.post(API_URL, productData, getAuthHeader());
+    const response = await api.post(API_URL, productData, );
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to add product' };
@@ -48,7 +39,7 @@ export const addProduct = async (productData) => {
 // Update product
 export const updateProduct = async (id, productData) => {
   try {
-    const response = await axios.put(`${API_URL}/${id}`, productData, getAuthHeader());
+    const response = await api.put(`${API_URL}/${id}`, productData, );
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to update product' };
@@ -58,7 +49,7 @@ export const updateProduct = async (id, productData) => {
 // Delete product
 export const deleteProduct = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
+    const response = await api.delete(`${API_URL}/${id}`, );
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to delete product' };
@@ -68,7 +59,7 @@ export const deleteProduct = async (id) => {
 // Update stock
 export const updateStock = async (stockData) => {
   try {
-    const response = await axios.post(`${API_URL}/updateStock`, stockData, getAuthHeader());
+    const response = await api.post(`${API_URL}/updateStock`, stockData, );
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to update stock' };
