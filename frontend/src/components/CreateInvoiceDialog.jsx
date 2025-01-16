@@ -29,6 +29,7 @@ import { styled } from '@mui/material/styles';
 import * as productService from '../services/productService';
 import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
+import useResponsiveness from '../hooks/useResponsive';
 
 
 // Styled components for better appearance
@@ -59,6 +60,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const [error, setError] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const { isMobile, isTablet } = useResponsiveness();
 
   const [currentItem, setCurrentItem] = useState({
     id: '',
@@ -169,16 +171,30 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         rate: value.price || 0,
         type: value.type,
         remainingStock: value.remainingStock,
-        total: (currentItem.quantity * (value.price || 0) * (currentItem.weight || 1))
+        total: (currentItem.quantity * (value.price || 0) ||  (currentItem.weight || 1))
       });
     }
   };
 
   const updateItemCalculations = (field, value) => {
-    setError('');
-    const updates = { ...currentItem, [field]: value };
-    updates.total = updates.quantity * updates.rate * (updates.weight || 1);
-    setCurrentItem(updates);
+    setCurrentItem(prev => {
+      const updates = { ...prev, [field]: value };
+      
+      // Calculate total based on either quantity or weight
+      if (field === 'quantity' || field === 'weight' || field === 'rate') {
+        // If weight is greater than 0, use weight calculation
+        if (updates.weight > 0) {
+          updates.total = (updates.weight * updates.rate).toFixed(2);
+          // Reset quantity when using weight
+          updates.quantity = 1;
+        } else {
+          // Otherwise use quantity calculation
+          updates.total = (updates.quantity * updates.rate).toFixed(2);
+        }
+      }
+      
+      return updates;
+    });
   };
 
   const handleAddItem = () => {
@@ -214,8 +230,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     setItems(items.filter(item => item.id !== itemId));
   };
 
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + item.total, 0);
+  const calculateGrandTotal = () => {
+    return items.reduce((sum, item) => sum + parseFloat(item.total), 0).toFixed(2);
   };
 
   const handleCreateInvoice = () => {
@@ -230,7 +246,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       customerId: customer.id,
       customerName: customer.name,
       items,
-      total: calculateTotal()
+      total: calculateGrandTotal()
     };
 
     console.log('Invoice Data:', invoiceData);
@@ -243,6 +259,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       onClose={onClose} 
       maxWidth="lg" 
       fullWidth
+      fullScreen={isMobile}
       PaperProps={{ sx: { minHeight: '80vh' } }}
       TransitionProps={{
         onEntered: () => {
@@ -312,62 +329,91 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           <Typography variant="subtitle1" gutterBottom>
             Add Items
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Autocomplete
-              options={stockItems}
-              getOptionLabel={(option) => `${option.name} (Stock: ${option.remainingStock})`}
-              sx={{ width: 300 }}
-              renderInput={(params) => (
-                <TextField 
-                  {...params} 
-                  label="Select Item"
-                  ref={itemInputRef}
-                />
-              )}
-              onChange={handleItemSelect}
-              value={selectedStock}
-              isOptionEqualToValue={(option, value) => option.name === value.name}
-            />
-            <TextField
-              label="Quantity"
-              type="number"
-              value={currentItem.quantity}
-              onChange={(e) => updateItemCalculations('quantity', parseFloat(e.target.value))}
-              sx={{ width: 150 }}
-              inputProps={{ min: 1, max: currentItem.remainingStock }}
-            />
-            <TextField
-              label="Weight (kg)"
-              type="number"
-              value={currentItem.weight}
-              onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
-              sx={{ width: 150 }}
-              inputProps={{ min: 0, step: 0.1 }}
-            />
-            <TextField
-              label="Rate"
-              type="number"
-              value={currentItem.rate}
-              onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
-              sx={{ width: 150 }}
-              inputProps={{ min: 0 }}
-            />
-            <TextField
-              label="Total"
-              type="number"
-              value={currentItem.total}
-              disabled
-              InputProps={{ readOnly: true }}
-              sx={{ width: 120 }}
-            />
-            <IconButton 
-              color="primary" 
-              onClick={handleAddItem}
-              disabled={!selectedStock}
-            >
-              <AddIcon />
-            </IconButton>
-          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                options={stockItems}
+                getOptionLabel={(option) => `${option.name} (Stock: ${option.remainingStock})`}
+                fullWidth
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Select Item"
+                    ref={itemInputRef}
+                    size={isMobile ? "small" : "medium"}
+                  />
+                )}
+                onChange={handleItemSelect}
+                value={selectedStock}
+                isOptionEqualToValue={(option, value) => option.name === value.name}
+              />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <TextField
+                fullWidth
+                label="Quantity"
+                type="number"
+                value={currentItem.quantity}
+                onChange={(e) => updateItemCalculations('quantity', parseFloat(e.target.value))}
+                inputProps={{ 
+                  min: 1, 
+                  max: currentItem.remainingStock 
+                }}
+                size={isMobile ? "small" : "medium"}
+                disabled={currentItem.weight > 0} // Disable if weight is being used
+                helperText={currentItem.weight > 0 ? "Using weight" : ""}
+              />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <TextField
+                fullWidth
+                label="Weight (kg)"
+                type="number"
+                value={currentItem.weight}
+                onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
+                inputProps={{ 
+                  min: 0, 
+                  step: 0.1 
+                }}
+                size={isMobile ? "small" : "medium"}
+                helperText={currentItem.weight > 0 ? "Using weight for total" : "Optional"}
+              />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <TextField
+                fullWidth
+                label="Rate"
+                type="number"
+                value={currentItem.rate}
+                onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
+                inputProps={{ min: 0 }}
+                size={isMobile ? "small" : "medium"}
+                helperText={currentItem.weight > 0 ? "Per kg" : "Per unit"}
+              />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <TextField
+                fullWidth
+                label="Total"
+                type="number"
+                value={currentItem.total}
+                disabled
+                InputProps={{ readOnly: true }}
+                size={isMobile ? "small" : "medium"}
+                helperText={currentItem.weight > 0 ? "Weight × Rate" : "Quantity × Rate"}
+              />
+            </Grid>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <IconButton 
+                color="primary" 
+                onClick={handleAddItem}
+                disabled={!selectedStock || (!currentItem.quantity && !currentItem.weight) || !currentItem.rate}
+                size={isMobile ? "small" : "medium"}
+              >
+                <AddIcon />
+              </IconButton>
+            </Grid>
+          </Grid>
         </Paper>
 
         <TableContainer component={Paper} elevation={2}>
@@ -407,7 +453,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="subtitle1">
-                    <strong>{calculateTotal()}</strong>
+                    <strong>{calculateGrandTotal()}</strong>
                   </Typography>
                 </TableCell>
                 <TableCell />

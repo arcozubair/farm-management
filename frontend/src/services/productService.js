@@ -66,6 +66,25 @@ export const updateStock = async (stockData) => {
   }
 };
 
+
+// Update product prices
+export const updateProductPrices = async (prices) => {
+  try {
+    const promises = Object.entries(prices).map(([id, price]) => 
+      api.post(
+        `/products/update-price`,
+        { id, price }
+      )
+    );
+    
+    await Promise.all(promises);
+    return { success: true };
+  } catch (error) {
+    throw error.response?.data || { success: false, message: 'Failed to update product prices' };
+  }
+};
+
+
 // Export all functions as named exports
 export const productService = {
   getAllProducts,
@@ -73,7 +92,6 @@ export const productService = {
   addProduct,
   updateProduct,
   deleteProduct,
-  updateStock
+  updateStock,
+  updateProductPrices
 };
-
-// No default export needed since we're using named exports 

@@ -26,17 +26,22 @@ import {
   Tab,
   Autocomplete,
   IconButton,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import dayBookService from '../services/dayBookService';
 import customerService from '../services/customerService';
 import Receipt from '../components/Receipt';
-import { Print as PrintIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Print as PrintIcon, Search as SearchIcon, Close as CloseIcon } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import AddSaleDialog from '../components/AddSaleDialog';
 import AddIcon from '@mui/icons-material/Add';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import useResponsiveness from '../hooks/useResponsive';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
 const determineShift = () => {
   const currentHour = new Date().getHours();
@@ -46,6 +51,7 @@ const determineShift = () => {
 
 const DayBook = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const { isMobile, isTablet } = useResponsiveness();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeTab, setActiveTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
@@ -234,71 +240,140 @@ const DayBook = () => {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Grid container spacing={3}>
+    <Box sx={{ 
+      p: isMobile ? 1 : 3,
+      backgroundColor: '#f5f5f7' 
+    }}>
+      <Grid container spacing={isMobile ? 1 : 3}>
         {/* Header */}
-        <Grid item xs={12} sx={{ mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item>
-              <Typography variant="h4">Day Book</Typography>
+        <Grid item xs={12} sx={{ mb: isMobile ? 1 : 2 }}>
+          <Grid 
+            container 
+            spacing={2} 
+            alignItems="center"
+          >
+            <Grid item xs={12} md={3}>
+              <Typography 
+                variant={isMobile ? "h5" : "h4"}
+                sx={{ fontWeight: 600, color: 'primary.main' }}
+              >
+                Day Book
+              </Typography>
             </Grid>
-            <Grid item>
+            <Grid item xs={6} md={5}>
               <TextField
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                fullWidth
+                size={isMobile ? "small" : "medium"}
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs />
-            <Grid item>
-              <Button 
-                variant="contained" 
-                onClick={() => {
-                  setDialogType('collection');
-                  setOpenDialog(true);
-                }}
-                sx={{ mr: 1 }}
-              >
-                Add Collection
-              </Button>
-              <Button 
-                variant="contained"
-                onClick={() => {
-                  setDialogType('transaction');
-                  setOpenDialog(true);
-                }}
-                sx={{ mr: 1 }}
-              >
-                Add Transaction
-              </Button>
-              <Button 
-                variant="contained"
-                color="success"
-                startIcon={<ReceiptIcon />}
-                onClick={() => setSaleDialogOpen(true)}
-              >
-                Add Sale
-              </Button>
+            <Grid item xs={6} md={4}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1,
+                justifyContent: 'flex-end',
+                ml: isMobile ? 3 : 0
+              }}>
+                <Tooltip title={isMobile ? "Add Collection" : ""}>
+                  <Button 
+                    variant={"contained"}
+                    onClick={() => {
+                      setDialogType('collection');
+                      setOpenDialog(true);
+                    }}
+                    sx={{ 
+                      minWidth: isMobile ? '40px' : 'auto',
+                      width: isMobile ? '40px' : 'auto',
+                      height: isMobile ? '40px' : 'auto',
+                      borderRadius: '12px',
+                      p: isMobile ? '8px' : 'auto'
+                    }}
+                  >
+                    {isMobile ? (
+                      <AddCircleOutlineIcon />
+                    ) : (
+                      <>
+                        Add Collection
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title={isMobile ? "Add Transaction" : ""}>
+                  <Button 
+                      variant={"contained"}
+                    onClick={() => {
+                      setDialogType('transaction');
+                      setOpenDialog(true);
+                    }}
+                    sx={{ 
+                      minWidth: isMobile ? '40px' : 'auto',
+                      width: isMobile ? '40px' : 'auto',
+                      height: isMobile ? '40px' : 'auto',
+                      borderRadius: '12px',
+                      p: isMobile ? '8px' : 'auto'
+                    }}
+                  >
+                    {isMobile ? (
+                      <PaymentsOutlinedIcon />
+                    ) : (
+                      <>
+                        Add Transaction
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title={isMobile ? "Add Sale" : ""}>
+                  <Button 
+                     variant={"contained"}
+                    color="success"
+                    onClick={() => setSaleDialogOpen(true)}
+                    sx={{ 
+                      minWidth: isMobile ? '40px' : 'auto',
+                      width: isMobile ? '40px' : 'auto',
+                      height: isMobile ? '40px' : 'auto',
+                      borderRadius: '12px',
+                      p: isMobile ? '8px' : 'auto'
+                    }}
+                  >
+                    {isMobile ? (
+                      <ShoppingCartOutlinedIcon />
+                    ) : (
+                      <>
+                        Add Sale
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
+              </Box>
             </Grid>
           </Grid>
         </Grid>
 
         {/* Summary Cards */}
         <Grid item xs={12}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Card>
+          <Grid container spacing={isMobile ? 1 : 2}>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ height: '100%' }}>
                 <CardContent>
-                  <Typography variant="h6">Collections</Typography>
+                  <Typography variant={isMobile ? "h6" : "h5"}>Collections</Typography>
                   <Typography>Milk: {entries?.summary.totalMilk || 0} L</Typography>
                   <Typography>Eggs: {entries?.summary.totalEggs || 0} Pcs</Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Card>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ height: '100%' }}>
                 <CardContent>
-                  <Typography variant="h6">Transactions</Typography>
+                  <Typography variant={isMobile ? "h6" : "h5"}>Transactions</Typography>
                   <Typography>Total Payments: ₹{entries?.summary.totalPayments || 0}</Typography>
                 </CardContent>
               </Card>
@@ -306,137 +381,156 @@ const DayBook = () => {
           </Grid>
         </Grid>
 
-        {/* Tabs */}
+        {/* Tabs and DataGrid */}
         <Grid item xs={12}>
           <Paper sx={{ width: '100%' }}>
             <Tabs
               value={activeTab}
               onChange={(e, newValue) => setActiveTab(newValue)}
+              variant={isMobile ? "fullWidth" : "standard"}
             >
               <Tab label="Collections" />
               <Tab label="Transactions" />
             </Tabs>
 
-            {/* Collections Tab */}
             {activeTab === 0 && (
-              <Box sx={{ height: 500, width: '100%' }}>
+              <Box sx={{ 
+                height: isMobile ? 400 : 500, 
+                width: '100%',
+                overflow: 'auto'
+              }}>
                 <DataGrid
                   rows={entries?.collections.map((entry, index) => ({
                     id: index,
-                    time: new Date(entry.createdAt).toLocaleTimeString(),
+                    time: new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     type: entry.type,
                     shift: entry.shift,
                     quantity: `${entry.quantity} ${entry.type === 'milk' ? 'L' : 'Pcs'}`
                   })) || []}
                   columns={[
-                    { field: 'time', headerName: 'Time', flex: 1, sortable: true },
-                    { field: 'type', headerName: 'Type', flex: 1, sortable: true },
-                    { field: 'shift', headerName: 'Shift', flex: 1, sortable: true },
-                    { field: 'quantity', headerName: 'Quantity', flex: 1, sortable: true }
+                    { 
+                      field: 'time', 
+                      headerName: 'Time', 
+                      flex: 0.8,
+                      minWidth: 80,
+                      sortable: false
+                    },
+                    { 
+                      field: 'type', 
+                      headerName: 'Type', 
+                      flex: 0.8,
+                      minWidth: 70,
+                      sortable: false
+                    },
+                    { 
+                      field: 'shift', 
+                      headerName: 'Shift', 
+                      flex: 1,
+                      minWidth: 80,
+                      hide: isMobile,
+                      sortable: false
+                    },
+                    { 
+                      field: 'quantity', 
+                      headerName: 'Qty', 
+                      flex: 1,
+                      minWidth: 70,
+                      sortable: false
+                    }
                   ]}
-                  autoHeight
-                  pageSize={10}
-                  rowsPerPageOptions={[10, 25, 50]}
+                  pageSize={isMobile ? 5 : 10}
+                  rowsPerPageOptions={[5, 10, 25]}
                   disableSelectionOnClick
                   sx={{
-                    '& .MuiDataGrid-root': {
-                      border: 'none',
-                    },
                     '& .MuiDataGrid-cell': {
-                      borderBottom: '1px solid #f0f0f0',
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      px: isMobile ? 1 : 2
                     },
-                    '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: '#f5f5f5',
-                      borderBottom: 'none',
-                    },
-                    '& .MuiDataGrid-virtualScroller': {
-                      backgroundColor: '#fff',
-                    },
-                    '& .MuiDataGrid-cell:hover': {
-                      color: 'primary.main',
-                    },
-                    boxShadow: 2,
-                    borderRadius: 2,
-                    overflow: 'hidden'
+                    '& .MuiDataGrid-columnHeader': {
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      px: isMobile ? 1 : 2
+                    }
                   }}
                 />
               </Box>
             )}
 
-            {/* Transactions Tab */}
             {activeTab === 1 && (
-              <Box sx={{ height: 500, width: '100%' }}>
-                {selectedTransactions.length > 1 && (
-                  <Grid container justifyContent="flex-end" sx={{ mb: 2 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<PrintIcon />}
-                      onClick={handlePrintMultipleReceipts}
-                    >
-                      Print Selected Receipts ({selectedTransactions.length})
-                    </Button>
-                  </Grid>
-                )}
+              <Box sx={{ 
+                height: isMobile ? 400 : 500, 
+                width: '100%',
+                overflow: 'auto'
+              }}>
                 <DataGrid
                   rows={entries?.transactions.map((transaction, index) => ({
                     id: index,
-                    time: new Date(transaction.createdAt).toLocaleTimeString(),
+                    time: new Date(transaction.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     customer: transaction.customerId?.name || 'N/A',
                     amountPaid: `₹${transaction.amountPaid.toFixed(2)}`,
-                    paymentMode: transaction.paymentMode === 'cash' ? 'Cash' : 'Account Transfer',
-                    actions: transaction,
-                    transaction: transaction
+                    paymentMode: transaction.paymentMode,
+                    actions: transaction
                   })) || []}
-                  checkboxSelection
-                  onRowSelectionModelChange={(newSelectionModel) => {
-                    const selectedRows = newSelectionModel.map(index => entries.transactions[index]);
-                    setSelectedTransactions(selectedRows);
-                  }}
                   columns={[
-                    { field: 'time', headerName: 'Time', flex: 1, sortable: true },
-                    { field: 'customer', headerName: 'Customer', flex: 1.5, sortable: true },
-                    { field: 'amountPaid', headerName: 'Amount Paid', flex: 1, sortable: true },
-                    { field: 'paymentMode', headerName: 'Payment Mode', flex: 1, sortable: true },
+                    { 
+                      field: 'time', 
+                      headerName: 'Time', 
+                      flex: 0.8,
+                      minWidth: 80,
+                      sortable: false
+                    },
+                    { 
+                      field: 'customer', 
+                      headerName: 'Customer', 
+                      flex: 1.2,
+                      minWidth: 100,
+                      sortable: false
+                    },
+                    { 
+                      field: 'amountPaid', 
+                      headerName: 'Amount', 
+                      flex: 1,
+                      minWidth: 90,
+                      sortable: false
+                    },
+                    { 
+                      field: 'paymentMode', 
+                      headerName: 'Mode', 
+                      flex: 1,
+                      minWidth: 100,
+                      hide: isMobile,
+                      sortable: false
+                    },
                     {
                       field: 'actions',
-                      headerName: 'Actions',
+                      headerName: 'Action',
                       flex: 0.5,
+                      minWidth: isMobile ? 60 : 50,
                       sortable: false,
                       renderCell: (params) => (
                         <IconButton 
                           onClick={() => handlePrintReceipt(params.value)}
-                          color="primary"
-                          size="small"
+                          size={isMobile ? "small" : "medium"}
                         >
                           <PrintIcon />
                         </IconButton>
                       )
                     }
                   ]}
-                  autoHeight
-                  pageSize={10}
-                  rowsPerPageOptions={[10, 25, 50]}
+                  pageSize={isMobile ? 5 : 10}
+                  rowsPerPageOptions={[5, 10, 25]}
                   disableSelectionOnClick
                   sx={{
-                    '& .MuiDataGrid-root': {
-                      border: 'none',
-                    },
                     '& .MuiDataGrid-cell': {
-                      borderBottom: '1px solid #f0f0f0',
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      px: isMobile ? 1 : 2
+                    },
+                    '& .MuiDataGrid-columnHeader': {
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      px: isMobile ? 1 : 2
                     },
                     '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: '#f5f5f5',
-                      borderBottom: 'none',
-                    },
-                    '& .MuiDataGrid-virtualScroller': {
-                      backgroundColor: '#fff',
-                    },
-                    '& .MuiDataGrid-cell:hover': {
-                      color: 'primary.main',
-                    },
-                    boxShadow: 2,
-                    borderRadius: 2,
-                    overflow: 'hidden'
+                      backgroundColor: '#f8f9fa'
+                    }
                   }}
                 />
               </Box>
@@ -446,16 +540,32 @@ const DayBook = () => {
       </Grid>
 
       {/* Add Entry Dialog */}
-      <Dialog open={openDialog} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Add {dialogType === 'collection' ? 'Collection' : 'Transaction'}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleClose} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle sx={{ 
+          pb: 1,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          {dialogType === 'collection' ? 'Add Collection' : 'Add Transaction'}
+          {isMobile && (
+            <IconButton onClick={handleClose} edge="end">
+              <CloseIcon />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             {dialogType === 'collection' && (
               <>
                 <Grid item xs={12}>
-                  <FormControl fullWidth>
+                  <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                     <InputLabel>Type</InputLabel>
                     <Select
                       value={collectionForm.type}
@@ -470,7 +580,7 @@ const DayBook = () => {
                   </FormControl>
                 </Grid>
                 <Grid item xs={12}>
-                  <FormControl fullWidth disabled>
+                  <FormControl fullWidth size={isMobile ? "small" : "medium"} disabled>
                     <InputLabel>Shift</InputLabel>
                     <Select
                       value={collectionForm.shift}
@@ -486,6 +596,7 @@ const DayBook = () => {
                     fullWidth
                     label="Quantity"
                     type="number"
+                    size={isMobile ? "small" : "medium"}
                     value={collectionForm.quantity}
                     onChange={(e) => setCollectionForm({
                       ...collectionForm,
@@ -521,6 +632,7 @@ const DayBook = () => {
                         {...params}
                         label="Search Customer"
                         variant="outlined"
+                        size={isMobile ? "small" : "medium"}
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -558,23 +670,25 @@ const DayBook = () => {
 
                 {selectedCustomer && (
                   <>
-                   <Grid item xs={12}>
-                   <TextField
-                     fullWidth
-                     label="Contact Number"
-                     value={selectedCustomer.contactNumber || 'N/A'}
-                     disabled
-                     variant="outlined"
-                   />
-                 </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Previous Balance"
-                      value={selectedCustomer.currentBalance || 0}
-                      disabled
-                    />
-                  </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Contact Number"
+                        value={selectedCustomer.contactNumber || 'N/A'}
+                        disabled
+                        variant="outlined"
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Previous Balance"
+                        value={selectedCustomer.currentBalance || 0}
+                        disabled
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    </Grid>
                   </>
                 )}
                 <Grid item xs={12}>
@@ -587,10 +701,11 @@ const DayBook = () => {
                       ...transactionForm,
                       amountPaid: e.target.value
                     })}
+                    size={isMobile ? "small" : "medium"}
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <FormControl fullWidth>
+                  <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                     <InputLabel>Payment Mode</InputLabel>
                     <Select
                       value={transactionForm.paymentMode}
@@ -608,11 +723,12 @@ const DayBook = () => {
             )}
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          {!isMobile && <Button onClick={handleClose}>Cancel</Button>}
           <Button 
             onClick={dialogType === 'collection' ? handleAddCollection : handleAddTransaction}
             variant="contained"
+            fullWidth={isMobile}
           >
             Submit
           </Button>

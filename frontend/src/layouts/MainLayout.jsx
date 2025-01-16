@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   AppBar,
   Box,
@@ -45,6 +45,7 @@ const MainLayout = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [open, setOpen] = useState(true);
   const { isMobile, isTablet } = useResponsive();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -59,6 +60,12 @@ const MainLayout = ({ children }) => {
       setOpen(true);
     }
   }, [isMobile, isTablet]);
+
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
@@ -91,6 +98,8 @@ const MainLayout = ({ children }) => {
   const handleLogout = () => {
     logout();
   };
+
+ 
 
   return (
     isAuthenticated ? (
@@ -302,9 +311,17 @@ const MainLayout = ({ children }) => {
               return (
                 <ListItem key={item.path} disablePadding sx={{ display: 'block', mb: 1 }}>
                   <ListItemButton
-                    onClick={() => navigate(item.path)}
+                    onClick={() => {
+                      navigate(item.path);
+                      if (isMobile) {
+                        setOpen(false);
+                        handleDrawerToggle();
+                      }
+                    }}
                     sx={{
                       minHeight: 48,
+                      minWidth: { xs: '100%', md: 200 },
+                      width: '100%',
                       px: 2.5,
                       py: 1.5,
                       borderRadius: 3,
@@ -316,6 +333,9 @@ const MainLayout = ({ children }) => {
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                       },
                       transition: 'all 0.2s ease-in-out',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: open ? 'flex-start' : 'center',
                     }}
                   >
                     <ListItemIcon
@@ -334,11 +354,14 @@ const MainLayout = ({ children }) => {
                         primary={item.label}
                         sx={{
                           opacity: open ? 1 : 0,
+                          flex: 'none',
+                          minWidth: 100,
                           '& .MuiTypography-root': {
                             fontWeight: 600,
                             letterSpacing: '-0.3px',
                             color: isActive ? 'common.white' : 'text.primary',
                             transition: 'color 0.2s ease-in-out',
+                            whiteSpace: 'nowrap',
                           },
                         }}
                       />

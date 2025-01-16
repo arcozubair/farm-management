@@ -23,7 +23,7 @@ export const updatePermissions = async (userId, permissions) => {
 export const deleteUser = async (userId) => {
   try {
     const response = await api.delete(
-      `${API_URL}/users/${userId}`,
+      `${API_URL}/${userId}`,
       
     );
     return response.data;

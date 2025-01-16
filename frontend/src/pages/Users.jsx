@@ -64,7 +64,7 @@ return i.role === 'user'
 
   const handleDeleteConfirm = async () => {
     try {
-      await deleteUser(userToDelete._id);
+      await userService.deleteUser(userToDelete._id);
       setUsers(users.filter(user => user._id !== userToDelete._id));
       enqueueSnackbar('User deleted successfully', { variant: 'success' });
     } catch (error) {
@@ -112,7 +112,7 @@ return i.role === 'user'
 
   const handleSubmit = async (values) => {
     try {
-      const response = await create(values);
+      const response = await userService.create(values);
       if (response.data.success) {
         setUsers((prevUsers) => [...prevUsers, response.data.data]);
         setIsDialogOpen(false);
@@ -121,6 +121,9 @@ return i.role === 'user'
         throw new Error(response.data.message);
       }
     } catch (error) {
+      enqueueSnackbar(error.response?.data?.message || 'Failed to create user', { 
+        variant: 'error' 
+      });
       throw error;
     }
   };
@@ -147,10 +150,14 @@ return i.role === 'user'
             ? { ...user, permissions: userPermissions }
             : user
         ));
+      enqueueSnackbar('User permissions updated successfully', { variant: 'success' });
+
         handlePermissionsDialogClose();
       }
     } catch (error) {
-      console.error('Error updating permissions:', error);
+      enqueueSnackbar(error.response?.data?.message || 'Failed to update user permissions', { 
+        variant: 'error' 
+      });
       setError('Failed to update permissions');
     }
   };
