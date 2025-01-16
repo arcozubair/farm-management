@@ -20,6 +20,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import LocalDrinkIcon from '@mui/icons-material/LocalDrink';
 import EggIcon from '@mui/icons-material/EggAlt';
 import ProductList from '../components/ProductList';
+import CategoryIcon from '@mui/icons-material/Category';
 import  * as  productService  from '../services/productService';
 import { useSnackbar } from 'notistack';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
@@ -121,143 +122,237 @@ const Products = () => {
 
   return (
     <Fade in={!loading}>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ p: isMobile ? 1 : 3 }}>
         {/* Header Section */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
-            Product Management
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Tooltip title="Refresh">
-              <IconButton onClick={handleRefresh} sx={{ bgcolor: 'background.paper', boxShadow: 1 }}>
-                <RefreshIcon sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="outlined"
-              startIcon={isMobile ? null : <CurrencyRupeeIcon />}
-              onClick={() => setOpenPriceDialog(true)}
-              sx={{ minWidth: isMobile ? 'auto' : undefined }}
-            >
-              {isMobile ? <CurrencyRupeeIcon /> : 'Manage Prices'}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={isMobile ? null : <AddIcon />}
-              onClick={() => setOpenAddDialog(true)}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                px: isMobile ? 2 : 3,
-                minWidth: isMobile ? 'auto' : undefined,
-                boxShadow: 2
+        <Card sx={{ p: isMobile ? 1 : 3, mb: 3 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'row',
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: isMobile ? 1 : 3,
+            gap: isMobile ? 1 : 2
+          }}>
+            <Typography 
+              variant={isMobile ? "h6" : "h4"}
+              sx={{ 
+                fontWeight: 600,
+                color: 'primary.main',
               }}
             >
-              {isMobile ? <AddIcon /> : 'Add Product'}
-            </Button>
+              {isMobile ? "Products" : "Product Management"}
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              flexShrink: 0
+            }}>
+              <Tooltip title="Refresh">
+                <IconButton
+                  onClick={handleRefresh}
+                  size="small"
+                  sx={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'background.paper',
+                    boxShadow: 1,
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                >
+                  <RefreshIcon 
+                    fontSize="small" 
+                    sx={{ 
+                      animation: refreshing ? 'spin 1s linear infinite' : 'none' 
+                    }} 
+                  />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Manage Prices">
+                <IconButton
+                  onClick={() => setOpenPriceDialog(true)}
+                  size="small"
+                  sx={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'background.paper',
+                    boxShadow: 1,
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                >
+                  <CurrencyRupeeIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Add Product">
+                <IconButton
+                  onClick={() => setOpenAddDialog(true)}
+                  size="small"
+                  sx={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    boxShadow: 1,
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
+                  }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
-        </Box>
+          <Divider sx={{ mb: isMobile ? 1 : 3 }} />
 
-        {/* Summary Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={4}>
-            <Card 
-              elevation={2}
-              sx={{ 
-                bgcolor: theme.palette.primary.light,
-                color: 'white',
-                height: '100%',
-                transition: 'transform 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <LocalDrinkIcon sx={{ mr: 1 }} />
-                  <Typography variant="h6">
-                    Today's Milk Collection
+          {/* Summary Cards */}
+          <Grid container spacing={isMobile ? 1 : 3}>
+            <Grid item xs={12} md={4}>
+              <Card 
+                elevation={2}
+                sx={{ 
+                  bgcolor: theme.palette.primary.light,
+                  color: 'white',
+                  height: '100%',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <LocalDrinkIcon sx={{ mr: 1, fontSize: isMobile ? '1.2rem' : '1.5rem' }} />
+                    <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
+                      Today's Milk Collection
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant={isMobile ? "h5" : "h4"} 
+                    sx={{ 
+                      mt: 1,
+                      fontWeight: 500
+                    }}
+                  >
+                    {todayCollections.milk} L
                   </Typography>
-                </Box>
-                <Typography variant="h3">
-                  {todayCollections.milk} L
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                  {new Date().toLocaleDateString('en-IN', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card 
-              elevation={2}
-              sx={{ 
-                bgcolor: theme.palette.secondary.light,
-                color: 'white',
-                height: '100%',
-                transition: 'transform 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <EggIcon sx={{ mr: 1 }} />
-                  <Typography variant="h6">
-                    Today's Eggs Collection
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      mt: 0.5, 
+                      opacity: 0.9,
+                      display: 'block'
+                    }}
+                  >
+                    {new Date().toLocaleDateString('en-IN', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
                   </Typography>
-                </Box>
-                <Typography variant="h3">
-                  {todayCollections.eggs} Pcs
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                  {new Date().toLocaleDateString('en-IN', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </Typography>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card 
+                elevation={2}
+                sx={{ 
+                  bgcolor: theme.palette.secondary.light,
+                  color: 'white',
+                  height: '100%',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <EggIcon sx={{ mr: 1, fontSize: isMobile ? '1.2rem' : '1.5rem' }} />
+                    <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
+                      Today's Eggs Collection
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant={isMobile ? "h5" : "h4"} 
+                    sx={{ 
+                      mt: 1,
+                      fontWeight: 500
+                    }}
+                  >
+                    {todayCollections.eggs} Pcs
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      mt: 0.5, 
+                      opacity: 0.9,
+                      display: 'block'
+                    }}
+                  >
+                    {new Date().toLocaleDateString('en-IN', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card 
+                elevation={2}
+                sx={{ 
+                  bgcolor: theme.palette.success.light,
+                  color: 'white',
+                  height: '100%',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <CategoryIcon sx={{ mr: 1, fontSize: isMobile ? '1.2rem' : '1.5rem' }} />
+
+                    <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
+                      Total Products
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant={isMobile ? "h5" : "h4"} 
+                    sx={{ 
+                      mt: 1,
+                      fontWeight: 500
+                    }}
+                  >
+                    {products.length}
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      mt: 0.5, 
+                      opacity: 0.9,
+                      display: 'block'
+                    }}
+                  >
+                    Active products in inventory
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Card 
-              elevation={2}
-              sx={{ 
-                bgcolor: theme.palette.success.light,
-                color: 'white',
-                height: '100%',
-                transition: 'transform 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
-              }}
-            >
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Total Products
-                </Typography>
-                <Typography variant="h3">
-                  {products.length}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                  Active products in inventory
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        </Card>
 
         {/* Divider with label */}
         <Box sx={{ mb: 4 }}>
@@ -277,9 +372,9 @@ const Products = () => {
         {/* Product List */}
         <Box 
           sx={{ 
-            bgcolor: theme.palette.background.paper,
+            bgcolor: 'background.paper',
             borderRadius: 2,
-            p: 3,
+            p: isMobile ? 1 : 3,
             boxShadow: 1
           }}
         >

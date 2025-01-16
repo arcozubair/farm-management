@@ -39,13 +39,35 @@ export const getLivestockStats = async () => {
   return response.data;
 };
 
+
+
+
+// Update livestock prices
+export const updateLivestockPrices = async (prices) => {
+  try {
+    const promises = Object.entries(prices).map(([id, price]) => 
+      api.post(
+        `${API_URL}/update-price`,
+        { id, price }
+      )
+    );
+    
+    await Promise.all(promises);
+    return { success: true };
+  } catch (error) {
+    throw error.response?.data || { success: false, message: 'Failed to update livestock prices' };
+  }
+};
+
+
 // Default export if needed
 const livestockService = {
   getAllLivestock,
   addLivestock,
   updateLivestock,
   deleteLivestock,
-  getLivestockStats
+  getLivestockStats,
+  updateLivestockPrices
 };
 
 export default livestockService; 

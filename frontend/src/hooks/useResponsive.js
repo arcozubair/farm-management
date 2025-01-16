@@ -1,30 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
-const useResponsive = () => {
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
+const useResponsiveness = () => {
+  const theme = useTheme();
+  
   return {
-    isMobile: windowSize.width < 600,
-    isTablet: windowSize.width >= 600 && windowSize.width < 960,
-    isDesktop: windowSize.width >= 960,
-    width: windowSize.width,
-    height: windowSize.height,
+    isMobile: useMediaQuery(theme.breakpoints.down('sm')),
+    isTablet: useMediaQuery(theme.breakpoints.between('sm', 'md')),
+    isDesktop: useMediaQuery(theme.breakpoints.up('md')),
+    isLargeScreen: useMediaQuery(theme.breakpoints.up('lg'))
   };
 };
 
-export default useResponsive; 
+export default useResponsiveness; 

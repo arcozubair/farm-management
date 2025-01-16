@@ -177,6 +177,7 @@ const AddSaleDialog = ({ open, onClose }) => {
 
       {selectedCustomer && (
         <CreateInvoiceDialog
+       
           open={invoiceDialogOpen}
           onClose={handleInvoiceClose}
           customer={selectedCustomer}

@@ -41,8 +41,12 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { useNavigate } from 'react-router-dom';
 import CreateInvoiceDialog from '../components/CreateInvoiceDialog';
+import { DataGrid } from '@mui/x-data-grid';
+import AddIcon from '@mui/icons-material/Add';
+import useResponsiveness from '../hooks/useResponsive';
 
 const Customers = () => {
+  const { isMobile, isTablet } = useResponsiveness();
   const { enqueueSnackbar } = useSnackbar();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -232,24 +236,105 @@ const Customers = () => {
     }
   ];
 
+  const columns = [
+    { 
+      field: 'name', 
+      headerName: 'Name',
+      flex: 1,
+      minWidth: 130
+    },
+    { 
+      field: 'contactNumber', 
+      headerName: 'Contact',
+      flex: 1,
+      minWidth: 120
+    },
+    { 
+      field: 'address', 
+      headerName: 'Address',
+      flex: 1.5,
+      minWidth: 150,
+      hide: isMobile
+    },
+    {
+      field: 'whatsappNotification',
+      headerName: 'WhatsApp',
+      flex: 0.8,
+      minWidth: 100,
+      hide: isMobile || isTablet,
+      renderCell: (params) => (
+        <Typography 
+          sx={{ 
+            color: params.value ? 'success.main' : 'text.secondary',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+        >
+          {params.value ? <WhatsAppIcon fontSize="small" /> : null}
+          {params.value ? 'Enabled' : 'Disabled'}
+        </Typography>
+      )
+    },
+    {
+      field: 'currentBalance',
+      headerName: 'Balance',
+      flex: 1,
+      minWidth: 100,
+      renderCell: (params) => (
+        <Typography sx={{ 
+          color: params.value >= 0 ? 'success.main' : 'error.main',
+          fontWeight: 500
+        }}>
+          ₹{params.value.toFixed(2)}
+        </Typography>
+      )
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {actions.map((action) => (
+            <IconButton
+              key={action.name}
+              color={action.color}
+              onClick={() => action.handler(params.row)}
+              title={action.name}
+              size="small"
+            >
+              {action.icon}
+            </IconButton>
+          ))}
+        </Box>
+      )
+    }
+  ];
+
   return (
-    <Box sx={{ p: 4, backgroundColor: '#f5f5f7' }}>
-      <Grid container spacing={3}>
+    <Box sx={{ 
+      p: isMobile ? 1 : 2,
+      backgroundColor: '#f5f5f7' 
+    }}>
+      <Grid container spacing={2}>
         <Grid item xs={12}>
-          <Grid container justifyContent="space-between" alignItems="center" spacing={2}>
+          <Grid 
+            container 
+            alignItems="center" 
+            spacing={2}
+          >
             <Grid item xs={12} md={4}>
               <Typography 
-                variant="h4" 
-                sx={{ 
-                  fontWeight: 600,
-                  
-                  color: 'primary.main'
-                }}
+                variant={isMobile ? "h5" : "h4"}
+                sx={{ fontWeight: 600, color: 'primary.main' }}
               >
                 Customers
               </Typography>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={isMobile ? 10 : 12} md={6}>
               <TextField
                 fullWidth
                 variant="outlined"
@@ -264,113 +349,58 @@ const Customers = () => {
                   ),
                   sx: { borderRadius: '12px' }
                 }}
+                size={isMobile ? "small" : "medium"}
               />
             </Grid>
-            <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
+            <Grid item xs={isMobile ? 2 : 12} md={2}>
+              <IconButton
+                color="primary"
                 onClick={() => setOpenDialog(true)}
                 sx={{
-                  borderRadius: '8px',
+                  backgroundColor: 'primary.main',
                   color: 'white',
-                  padding: '8px 24px',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
+                  width: isMobile ? 40 : 48,
+                  height: isMobile ? 40 : 48,
                 }}
               >
-                Add Customer
-              </Button>
+                <AddIcon />
+              </IconButton>
             </Grid>
           </Grid>
         </Grid>
 
         <Grid item xs={12}>
-          <TableContainer 
-            component={Paper} 
-            sx={{ 
+          <DataGrid
+            rows={filteredCustomers}
+            columns={columns}
+            getRowId={(row) => row._id}
+            autoHeight
+            pagination
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            disableSelectionOnClick
+            sx={{
+              backgroundColor: 'white',
               borderRadius: '12px',
+              '& .MuiDataGrid-cell': {
+                borderBottom: 'none',
+              },
+              '& .MuiDataGrid-columnHeaders': {
+                backgroundColor: '#f8f9fa',
+                borderBottom: 'none',
+              },
+              '& .MuiDataGrid-row': {
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
+              },
+              border: 'none',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
             }}
-          >
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Contact</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Address</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>WhatsApp</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Balance</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredCustomers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                      <Typography color="textSecondary">
-                        No customers found matching your search
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCustomers.map((customer) => (
-                    <TableRow 
-                      key={customer._id}
-                      sx={{ 
-                        '&:hover': { 
-                          backgroundColor: '#f5f5f5',
-                          transition: 'background-color 0.2s ease'
-                        }
-                      }}
-                    >
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>{customer.contactNumber}</TableCell>
-                      <TableCell>{customer.address}</TableCell>
-                      <TableCell>
-                        {customer.whatsappNotification ? (
-                          <Typography 
-                            sx={{ 
-                              color: 'success.main',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}
-                          >
-                            <WhatsAppIcon fontSize="small" /> Enabled
-                          </Typography>
-                        ) : (
-                          <Typography color="text.secondary">Disabled</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography 
-                          sx={{ 
-                            color: customer.currentBalance >= 0 ? 'success.main' : 'error.main',
-                            fontWeight: 500 
-                          }}
-                        >
-                          ₹{customer.currentBalance.toFixed(2)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          {actions.map((action) => (
-                            <IconButton
-                              key={action.name}
-                              color={action.color}
-                              onClick={() => action.handler(customer)}
-                              title={action.name}
-                            >
-                              {action.icon}
-                            </IconButton>
-                          ))}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          />
         </Grid>
       </Grid>
 
@@ -530,7 +560,7 @@ const Customers = () => {
 
           {ledgerData && (
             <>
-              <Grid container spacing={2} sx={{ mb: 4 }}>
+              <Grid container spacing={{ xs: 2, sm: 4 }} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={3}>
                   <Card 
                     sx={{ 

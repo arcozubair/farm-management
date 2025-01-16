@@ -26,6 +26,7 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
+  Tooltip,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -38,6 +39,8 @@ import livestockService from '../services/livestockService';
 import { useAuth } from '../context/AuthContext';
 import PriceManagementDialog from '../components/PriceManagementDialog';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
+import useResponsiveness from '../hooks/useResponsive';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 // Styled components for modern look
 const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
@@ -87,6 +90,8 @@ const CategoryRow = ({ category, items, onEdit, onDelete, permissions }) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  const { isMobile, isTablet } = useResponsiveness();
+
 
   // Group items by subcategory
   const groupedItems = items.reduce((acc, item) => {
@@ -117,10 +122,10 @@ const CategoryRow = ({ category, items, onEdit, onDelete, permissions }) => {
   return (
     <>
       <StyledTableRow className="category-row">
-        <StyledTableCell>
+        <StyledTableCell sx={{ p: isMobile ? 1 : 2 }}>
           <IconButton
             aria-label="expand row"
-            size="small"
+            size={isMobile ? "small" : "medium"}
             onClick={() => setOpen(!open)}
             sx={{ 
               transition: 'transform 0.3s',
@@ -130,27 +135,33 @@ const CategoryRow = ({ category, items, onEdit, onDelete, permissions }) => {
             <KeyboardArrowDownIcon />
           </IconButton>
         </StyledTableCell>
-        <StyledTableCell component="th" scope="row">
-          <Typography variant="h6" sx={{ fontWeight: 500 }}>
+        <StyledTableCell 
+          component="th" 
+          scope="row"
+          sx={{ p: isMobile ? 1 : 2 }}
+        >
+          <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </Typography>
         </StyledTableCell>
-        <StyledTableCell align="right">
-          <Typography variant="h6" sx={{ fontWeight: 500 }}>
+        <StyledTableCell 
+          align="right"
+          sx={{ p: isMobile ? 1 : 2 }}
+        >
+          <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
             {totalQuantity}
           </Typography>
         </StyledTableCell>
-       
       </StyledTableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1, ml: 4 }}>
+            <Box sx={{ margin: isMobile ? 0.5 : 1, ml: isMobile ? 2 : 4 }}>
               {Object.entries(groupedItems).map(([subcategory, subcategoryItems]) => (
-                <Box key={subcategory} sx={{ mb: 3 }}>
+                <Box key={subcategory} sx={{ mb: isMobile ? 2 : 3 }}>
                   {category !== 'poultry' && (
                     <Typography
-                      variant="subtitle1"
+                      variant={isMobile ? "body2" : "subtitle1"}
                       sx={{
                         fontWeight: 600,
                         color: 'primary.main',
@@ -160,45 +171,63 @@ const CategoryRow = ({ category, items, onEdit, onDelete, permissions }) => {
                       {subcategory}
                     </Typography>
                   )}
-                  <Table size="small" aria-label="livestock">
+                  <Table size={isMobile ? "small" : "medium"} aria-label="livestock">
                     <TableHead>
                       <TableRow>
-                        <StyledTableCell>Type</StyledTableCell>
-                        <StyledTableCell align="right">Quantity</StyledTableCell>
+                        <StyledTableCell sx={{ p: isMobile ? 1 : 2 }}>Type</StyledTableCell>
+                        <StyledTableCell align="right" sx={{ p: isMobile ? 1 : 2 }}>Quantity</StyledTableCell>
                         {(permissions.canEdit || permissions.canDelete) && (
-                          <StyledTableCell align="right">Actions</StyledTableCell>
+                          <StyledTableCell align="right" sx={{ p: isMobile ? 1 : 2 }}>Actions</StyledTableCell>
                         )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {subcategoryItems.map((item) => (
                         <StyledTableRow key={item._id}>
-                          <StyledTableCell component="th" scope="row">
+                          <StyledTableCell 
+                            component="th" 
+                            scope="row"
+                            sx={{ 
+                              p: isMobile ? 1 : 2,
+                              fontSize: isMobile ? '0.875rem' : 'inherit'
+                            }}
+                          >
                             {getTypeLabel(item.type)}
                           </StyledTableCell>
-                          <StyledTableCell align="right">
+                          <StyledTableCell 
+                            align="right"
+                            sx={{ 
+                              p: isMobile ? 1 : 2,
+                              fontSize: isMobile ? '0.875rem' : 'inherit'
+                            }}
+                          >
                             {item.quantity}
                           </StyledTableCell>
                           {(permissions.canEdit || permissions.canDelete) && (
-                            <StyledTableCell align="right">
-                              {permissions.canEdit && (
-                                <ActionButton 
-                                  onClick={() => onEdit(item)}
-                                  size="small"
-                                  sx={{ color: 'primary.main' }}
-                                >
-                                  <EditIcon />
-                                </ActionButton>
-                              )}
-                              {permissions.canDelete && (
-                                <ActionButton 
-                                  onClick={() => onDelete(item._id)}
-                                  size="small"
-                                  sx={{ color: 'error.main' }}
-                                >
-                                  <DeleteIcon />
-                                </ActionButton>
-                              )}
+                            <StyledTableCell 
+                              align="right"
+                              sx={{ p: isMobile ? 0.5 : 2 }}
+                            >
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                {permissions.canEdit && (
+                                  <ActionButton 
+                                    onClick={() => onEdit(item)}
+                                    size={isMobile ? "small" : "medium"}
+                                    sx={{ color: 'primary.main' }}
+                                  >
+                                    <EditIcon fontSize={isMobile ? "small" : "medium"} />
+                                  </ActionButton>
+                                )}
+                                {permissions.canDelete && (
+                                  <ActionButton 
+                                    onClick={() => onDelete(item._id)}
+                                    size={isMobile ? "small" : "medium"}
+                                    sx={{ color: 'error.main' }}
+                                  >
+                                    <DeleteIcon fontSize={isMobile ? "small" : "medium"} />
+                                  </ActionButton>
+                                )}
+                              </Box>
                             </StyledTableCell>
                           )}
                         </StyledTableRow>
@@ -458,63 +487,114 @@ console.log("user permissions", user);
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <StyledCard>
+    <Box sx={{ p: isMobile ? 1 : 3 }}>
+      <StyledCard sx={{ p: isMobile ? 1 : 3 }}>
         <Box sx={{ 
           display: 'flex', 
+          flexDirection: 'row',
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          mb: 3,
-          flexWrap: 'wrap',
-          gap: 2
+          mb: isMobile ? 1 : 3,
+          gap: isMobile ? 1 : 2
         }}>
           <Typography 
-            variant="h4" 
+            variant={isMobile ? "h6" : "h4"}
             sx={{ 
               fontWeight: 600,
-              color: 'primary.main' 
+              color: 'primary.main',
             }}
           >
-            Livestock Management
+            {isMobile ? "Livestock" : "Livestock Management"}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Button
-              variant="outlined"
-              startIcon={isMobile ? null : <CurrencyRupeeIcon />}
-              onClick={() => setOpenPriceDialog(true)}
-              sx={{ minWidth: isMobile ? 'auto' : undefined }}
-            >
-              {isMobile ? <CurrencyRupeeIcon /> : 'Manage Prices'}
-            </Button>
-            {userPermissions.canCreate && (
-              <Button
-                variant="contained"
-                startIcon={isMobile ? null : <AddIcon />}
-                onClick={() => handleOpenDialog()}
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            flexShrink: 0
+          }}>
+            <Tooltip title="Refresh">
+              <IconButton
+                onClick={fetchLivestock}
+                size="small"
                 sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  px: isMobile ? 2 : 3,
-                  minWidth: isMobile ? 'auto' : undefined
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: 'background.paper',
+                  boxShadow: 1,
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
                 }}
               >
-                {isMobile ? <AddIcon /> : 'Add Livestock'}
-              </Button>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Manage Prices">
+              <IconButton
+                onClick={() => setOpenPriceDialog(true)}
+                size="small"
+                sx={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: 'background.paper',
+                  boxShadow: 1,
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+              >
+                <CurrencyRupeeIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {userPermissions.canCreate && (
+              <Tooltip title="Add Livestock">
+                <IconButton
+                  onClick={() => handleOpenDialog()}
+                  size="small"
+                  sx={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    boxShadow: 1,
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
+                  }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             )}
           </Box>
         </Box>
-        <Divider sx={{ mb: 3 }} />
+        <Divider sx={{ mb: isMobile ? 1 : 3 }} />
 
-        <StyledTableContainer>
-          <Table aria-label="collapsible table">
+        <StyledTableContainer sx={{ 
+          '& .MuiTableCell-root': {
+            p: isMobile ? 0.5 : 2
+          },
+          '& .MuiTableCell-alignRight': {
+            pr: isMobile ? 2 : 3
+          }
+        }}>
+          <Table 
+            aria-label="collapsible table"
+            size={isMobile ? "small" : "medium"}
+          >
             <TableHead>
               <TableRow>
                 <StyledTableCell className="header" />
                 <StyledTableCell className="header">Category</StyledTableCell>
-                <StyledTableCell className="header" align="right">
+                <StyledTableCell 
+                  className="header" 
+                  align="right" 
+                  sx={{ pr: isMobile ? 2 : 3 }}
+                >
                   Total Quantity
                 </StyledTableCell>
-               
               </TableRow>
             </TableHead>
             <TableBody>
@@ -533,7 +613,13 @@ console.log("user permissions", user);
         </StyledTableContainer>
       </StyledCard>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>
           {selectedLivestock ? 'Edit Livestock' : 'Add New Livestock'}
         </DialogTitle>
@@ -631,6 +717,7 @@ console.log("user permissions", user);
         onClose={handleDeleteCancel}
         maxWidth="xs"
         fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle sx={{ pb: 1 }}>
           Confirm Delete
