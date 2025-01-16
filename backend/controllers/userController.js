@@ -214,7 +214,6 @@ exports.revokePermissions = async (req, res) => {
 exports.updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    console.log(req.user.id,"and password data is" ,req.body)
     
     // Get user with password
     const user = await User.findById(req.user.id).select('+password');
@@ -222,16 +221,16 @@ exports.updatePassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        message: 'User not found'
       });
     }
 
     // Check if current password matches
     const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
-        error: 'Current password is incorrect'
+        message: 'Current password is incorrect'
       });
     }
 
@@ -241,15 +240,13 @@ exports.updatePassword = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Password updated successfully',
-      modifiedAt: user.passwordModifiedAt,
-      modifiedFields: ['password']
+      message: 'Password updated successfully'
     });
   } catch (error) {
     console.error('Update password error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Server Error'
+      message: error.message || 'Server Error'
     });
   }
 };

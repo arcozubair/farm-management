@@ -80,9 +80,13 @@ const Profile = () => {
         setOpenPasswordDialog(false);
         resetForm();
       } catch (error) {
-        enqueueSnackbar(error.response?.data?.message || 'Failed to update password', {
-          variant: 'error',
-        });
+        if (error.response?.status === 401) {
+          enqueueSnackbar('Current password is incorrect', { variant: 'error' });
+        } else {
+          enqueueSnackbar(error.response?.data?.message || 'Failed to update password', {
+            variant: 'error',
+          });
+        }
       } finally {
         setLoading(false);
       }
