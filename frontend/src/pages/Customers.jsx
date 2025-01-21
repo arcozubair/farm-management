@@ -353,21 +353,22 @@ const Customers = () => {
               />
             </Grid>
             <Grid item xs={isMobile ? 2 : 12} md={2}>
-              <IconButton
-                color="primary"
-                onClick={() => setOpenDialog(true)}
-                sx={{
-                  backgroundColor: 'primary.main',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
-              >
-                <AddIcon />
-              </IconButton>
+
+            <Button
+          variant="contained"
+          startIcon={!isMobile && <AddIcon />}
+          onClick={() => setOpenDialog(true)}
+          sx={{ 
+            width: { xs: '40px', sm: 'auto' },
+            minWidth: { xs: '40px', sm: '100px' },
+            height: { xs: '40px',},
+            borderRadius: isMobile ? '50%' : '8px',
+            p: isMobile ? 0 : 2
+          }}
+        >
+          {isMobile ? <AddIcon /> : 'Add Customer'}
+        </Button>
+              
             </Grid>
           </Grid>
         </Grid>

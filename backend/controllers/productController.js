@@ -196,7 +196,6 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
-// Add this function to create initial products if they don't exist
 exports.initializeProducts = async () => {
   try {
     // Check if milk product exists
@@ -225,37 +224,48 @@ exports.initializeProducts = async () => {
   }
 };
 
-// Add this new function to get product details
 exports.getProductDetails = async (req, res) => {
   try {
     const date = new Date(req.query.date);
-    date.setHours(12, 0, 0, 0);  // Set to noon to avoid timezone issues
+    date.setHours(0, 0, 0, 0); // Start of the day
 
     console.log('Fetching collections for date:', date);
 
-    // Find all collections for today
-    const dayBook = await DayBook.findOne({ 
-      createdAt: {
-        $gte: new Date(date.setHours(0, 0, 0, 0)),
-        $lt: new Date(date.setHours(23, 59, 59, 999))
+    // Aggregate collections for the specified date
+    const result = await DayBook.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: date, // Start of the day
+            $lt: new Date(date.getTime() + 24 * 60 * 60 * 1000) // End of the day
+          }
+        }
+      },
+      {
+        $unwind: "$collections" // Decompose the collections array into individual documents
+      },
+      {
+        $group: {
+          _id: "$collections.type", // Group by collection type
+          totalQuantity: { $sum: { $toDouble: "$collections.quantity" } } // Sum quantities by type
+        }
       }
-    });
-    
-    console.log('Found dayBook:', dayBook);
+    ]);
 
+    console.log('Aggregation result:', result);
+
+    // Initialize collections
     let milkCollection = 0;
     let eggsCollection = 0;
 
-    if (dayBook && dayBook.collections) {
-      // Sum up collections by type
-      dayBook.collections.forEach(collection => {
-        if (collection.type === 'milk') {
-          milkCollection += Number(collection.quantity);
-        } else if (collection.type === 'eggs') {
-          eggsCollection += Number(collection.quantity);
-        }
-      });
-    }
+    // Map results to specific collection types
+    result.forEach(item => {
+      if (item._id === 'milk') {
+        milkCollection = item.totalQuantity;
+      } else if (item._id === 'eggs') {
+        eggsCollection = item.totalQuantity;
+      }
+    });
 
     console.log('Calculated collections:', { milkCollection, eggsCollection });
 

@@ -1,6 +1,5 @@
-const User = require('../models/User');  // Assuming you're using Mongoose for MongoDB
+const User = require('../models/User');  
 
-// Get all users
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
@@ -16,7 +15,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Create a new user (admin only)
 exports.createEmployee = async (req, res) => {
   try {
     const { username, email } = req.body;
@@ -67,8 +65,6 @@ exports.createEmployee = async (req, res) => {
   }
 };
 
-
-// Update user details (admin only)
 exports.updateUser = async (req, res) => {
   try {
     const { userId, permissions } = req.body; // permissions should be an object
@@ -102,8 +98,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-
-// Delete user (admin only)
 exports.deleteUser = async (req, res) => {
   try {
     // Find user by id
@@ -181,8 +175,6 @@ exports.assignPermissions = async (req, res) => {
   }
 };
 
-
-// Revoke permissions from a specific user (admin only)
 exports.revokePermissions = async (req, res) => {
   const { permissions } = req.body;
 

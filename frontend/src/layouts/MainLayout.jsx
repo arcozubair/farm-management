@@ -19,23 +19,25 @@ import {
   useTheme,
 } from '@mui/material';
 import {
+  SpaceDashboard as DashboardIcon,
+  AgricultureOutlined as LivestockIcon,
+  Inventory as ProductsIcon,
+  Diversity3 as PeopleIcon,
+  ShoppingBagOutlined as SalesIcon,
+  ImportContacts as BookIcon,
+  ManageAccounts as UserIcon,
   Menu as MenuIcon,
   Person as PersonIcon,
   ExitToApp as LogoutIcon,
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
-  Pets as LivestockIcon,
-  Inventory as ProductsIcon,
-  PointOfSale as SalesIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  Book as BookIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useResponsive from '../hooks/useResponsive';
 
 const DRAWER_WIDTH = 240;
+const CLOSED_DRAWER_WIDTH = 80;
 
 const MainLayout = ({ children }) => {
   const theme = useTheme();
@@ -68,14 +70,51 @@ const MainLayout = ({ children }) => {
   }, [location.pathname]);
 
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { path: '/livestock', label: 'Livestock', icon: LivestockIcon },
-    { path: '/products', label: 'Products', icon: ProductsIcon },
-    { path: '/customers', label: 'Customers', icon: PeopleIcon, role: 'admin' },
-    { path: '/sales', label: 'Sales', icon: SalesIcon },
-    { path: '/daybook', label: 'Day Book', icon: BookIcon, role: 'admin' },
-    { path: '/users', label: 'Users', icon: PeopleIcon, role: 'admin' },
-
+    { 
+      path: '/dashboard', 
+      label: 'Dashboard', 
+      icon: '/icons/dashboard.png',
+      iconColor: '#2196f3'
+    },
+    { 
+      path: '/livestock', 
+      label: 'Livestock', 
+      icon: '/icons/cow.png',
+      iconColor: '#4caf50'
+    },
+    { 
+      path: '/products', 
+      label: 'Products', 
+      icon: '/icons/box.png',
+      iconColor: '#ff9800'
+    },
+    { 
+      path: '/customers', 
+      label: 'Customers', 
+      icon: '/icons/customers.png',
+      role: 'admin',
+      iconColor: '#e91e63'
+    },
+    { 
+      path: '/sales', 
+      label: 'Sales', 
+      icon: '/icons/sales.png',
+      iconColor: '#9c27b0'
+    },
+    { 
+      path: '/daybook', 
+      label: 'Day Book', 
+      icon: '/icons/book.png',
+      role: 'admin',
+      iconColor: '#00bcd4'
+    },
+    { 
+      path: '/users', 
+      label: 'Users', 
+      icon: '/icons/users.png',
+      role: 'admin',
+      iconColor: '#f44336'
+    },
   ];
 
   const handleDrawerToggle = () => {
@@ -112,8 +151,8 @@ const MainLayout = ({ children }) => {
             backdropFilter: 'blur(12px)',
             boxShadow: 'none',
             borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
-            width: `calc(100% - ${!isMobile ? (open ? DRAWER_WIDTH : 64) : 0}px)`,
-            ml: `${!isMobile ? (open ? DRAWER_WIDTH : 64) : 0}px`,
+            width: `calc(100% - ${!isMobile ? (open ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH) : 0}px)`,
+            ml: `${!isMobile ? (open ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH) : 0}px`,
             transition: theme.transitions.create(['width', 'margin'], {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
@@ -240,10 +279,10 @@ const MainLayout = ({ children }) => {
           open={open}
           onClose={isMobile ? handleDrawerToggle : undefined}
           sx={{
-            width: !isMobile ? (open ? DRAWER_WIDTH : 64) : DRAWER_WIDTH,
+            width: open ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
-              width: !isMobile ? (open ? DRAWER_WIDTH : 64) : DRAWER_WIDTH,
+              width: open ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH,
               boxSizing: 'border-box',
               backgroundColor: 'rgba(255, 255, 255, 0.9)',
               backdropFilter: 'blur(12px)',
@@ -305,7 +344,6 @@ const MainLayout = ({ children }) => {
           <List sx={{ mt: 3, px: 2, flex: 1 }}>
             {menuItems.map((item) => {
               if (item.role && user?.role !== item.role) return null;
-              const Icon = item.icon;
               const isActive = location.pathname === item.path;
 
               return (
@@ -343,11 +381,16 @@ const MainLayout = ({ children }) => {
                         minWidth: 0,
                         mr: open ? 2 : 'auto',
                         justifyContent: 'center',
-                        color: isActive ? 'common.white' : 'text.secondary',
-                        transition: 'color 0.2s ease-in-out',
+                        transition: 'all 0.2s ease-in-out',
+                        '& img': {
+                          width: '28px',
+                          height: '28px',
+                          transition: 'transform 0.2s ease-in-out',
+                        
+                        },
                       }}
                     >
-                      <Icon />
+                      <img src={item.icon} alt={item.label} />
                     </ListItemIcon>
                     {open && (
                       <ListItemText
@@ -427,7 +470,7 @@ const MainLayout = ({ children }) => {
             p: { xs: 2, sm: 3, md: 4 },
             backgroundColor: '#f8fafc',
             minHeight: '100vh',
-            width: `calc(100% - ${!isMobile ? (open ? DRAWER_WIDTH : 64) : 0}px)`,
+            width: `calc(100% - ${!isMobile ? (open ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH) : 0}px)`,
             transition: theme.transitions.create(['width', 'margin'], {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,

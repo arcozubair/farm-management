@@ -30,6 +30,9 @@ import * as productService from '../services/productService';
 import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
 import useResponsiveness from '../hooks/useResponsive';
+import * as invoiceService from '../services/invoiceService';
+import { useSnackbar } from 'notistack';
+import * as companySettingsService from '../services/companySettingsService';
 
 
 // Styled components for better appearance
@@ -58,7 +61,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
   const [error, setError] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const { isMobile, isTablet } = useResponsiveness();
 
@@ -78,6 +81,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
 
   // Add ref for the item Autocomplete
   const itemInputRef = React.useRef(null);
+
+  const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     const fetchStock = async () => {
@@ -123,6 +128,24 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     }
   }, [open]);
 
+  useEffect(() => {
+    const fetchInvoiceNumber = async () => {
+      try {
+        const response = await companySettingsService.getNextInvoiceNumber();
+        if (response.success) {
+          setInvoiceNumber(response.data.nextInvoiceNumber);
+        }
+      } catch (error) {
+        console.error('Error fetching invoice number:', error);
+        enqueueSnackbar('Failed to fetch invoice number', { variant: 'error' });
+      }
+    };
+
+    if (open) {
+      fetchInvoiceNumber();
+    }
+  }, [open]);
+
   // Add useEffect to focus on input when dialog opens
   useEffect(() => {
     if (open) {
@@ -164,14 +187,17 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const handleItemSelect = (event, value) => {
     setError('');
     if (value) {
+      console.log('Selected stock item:', value);
       setSelectedStock(value);
       setCurrentItem({
         ...currentItem,
+        id: value._id,
+        productId: value._id,
         name: value.name,
         rate: value.price || 0,
         type: value.type,
         remainingStock: value.remainingStock,
-        total: (currentItem.quantity * (value.price || 0) ||  (currentItem.weight || 1))
+        total: (currentItem.quantity * (value.price || 0))
       });
     }
   };
@@ -198,32 +224,37 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   };
 
   const handleAddItem = () => {
-    if (validateItemInput()) {
-      setItems([...items, { ...currentItem, id: Date.now() }]);
-      setSelectedStock(null);
-      setCurrentItem({
-        id: '',
-        name: '',
-        quantity: 1,
-        weight: 0,
-        rate: 0,
-        total: 0,
-        type: '',
-        remainingStock: 0
-      });
-      setError('');
-      
-      // Focus back on the Autocomplete
-      setTimeout(() => {
-        if (autocompleteRef.current) {
-          // Access the input element and focus it
-          const input = autocompleteRef.current.getElementsByClassName('MuiInputBase-input')[0];
-          if (input) {
-            input.focus();
-          }
-        }
-      }, 0);
+    if (!selectedStock) {
+      setError('Please select a product');
+      return;
     }
+
+    const newItem = {
+      id: selectedStock._id,
+      productId: selectedStock._id,
+      name: selectedStock.name,
+      quantity: currentItem.quantity,
+      weight: currentItem.weight || 0,
+      rate: currentItem.rate,
+      total: currentItem.total,
+      type: selectedStock.type,
+      remainingStock: selectedStock.remainingStock
+    };
+
+    setItems(prevItems => [...prevItems, newItem]);
+    
+    // Reset current item and selection
+    setSelectedStock(null);
+    setCurrentItem({
+      id: '',
+      name: '',
+      quantity: 1,
+      weight: 0,
+      rate: 0,
+      total: 0,
+      type: '',
+      remainingStock: 0
+    });
   };
 
   const handleRemoveItem = (itemId) => {
@@ -234,43 +265,47 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     return items.reduce((sum, item) => sum + parseFloat(item.total), 0).toFixed(2);
   };
 
-  const handleCreateInvoice = () => {
-    if (items.length === 0) {
-      setError('Please add at least one item to the invoice');
-      return;
-    }
-    
-    const invoiceData = {
-      invoiceNumber,
-      invoiceDate,
-      customerId: customer.id,
-      customerName: customer.name,
-      items,
-      total: calculateGrandTotal()
-    };
+  const handleCreateInvoice = async () => {
+    setLoading(true);
+    setError('');
 
-    console.log('Invoice Data:', invoiceData);
-    // Add your invoice creation API call here
+    try {
+      const invoiceData = {
+        customer: customer._id,
+        items: items.map(item => ({
+          itemId: item.productId,
+          itemType: item.type.toUpperCase(),
+          name: item.name,
+          quantity: Number(item.quantity),
+          price: Number(item.rate),
+          total: Number(item.total),
+          weight: Number(item.weight)
+        })),
+        grandTotal: Number(calculateGrandTotal()),
+        paidAmount: Number(calculateGrandTotal()),
+        remainingBalance: 0,
+        invoiceDate: invoiceDate
+      };
+
+      const response = await invoiceService.createInvoice(invoiceData);
+      enqueueSnackbar('Invoice created successfully', { variant: 'success' });
+      onClose();
+    } catch (error) {
+      console.error('Invoice creation error:', error);
+      setError(error.message || 'Failed to create invoice');
+      enqueueSnackbar(error.message || 'Failed to create invoice', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog 
       open={open} 
       onClose={onClose} 
-      maxWidth="lg" 
+      maxWidth="md" 
       fullWidth
-      fullScreen={isMobile}
       PaperProps={{ sx: { minHeight: '80vh' } }}
-      TransitionProps={{
-        onEntered: () => {
-          if (itemInputRef.current) {
-            const input = itemInputRef.current.querySelector('input');
-            if (input) {
-              input.focus();
-            }
-          }
-        }
-      }}
     >
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 4 }}>
@@ -295,172 +330,213 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       <Divider />
 
       <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        <Box sx={{ mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Invoice Number"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                disabled
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Invoice Date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          {/* Invoice Details Section */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 2 }}>Invoice Details</Typography>
           </Grid>
-        </Box>
-
-        <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Add Items
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                options={stockItems}
-                getOptionLabel={(option) => `${option.name} (Stock: ${option.remainingStock})`}
-                fullWidth
-                renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    label="Select Item"
-                    ref={itemInputRef}
-                    size={isMobile ? "small" : "medium"}
-                  />
-                )}
-                onChange={handleItemSelect}
-                value={selectedStock}
-                isOptionEqualToValue={(option, value) => option.name === value.name}
-              />
-            </Grid>
-            <Grid item xs={6} md={2}>
-              <TextField
-                fullWidth
-                label="Quantity"
-                type="number"
-                value={currentItem.quantity}
-                onChange={(e) => updateItemCalculations('quantity', parseFloat(e.target.value))}
-                inputProps={{ 
-                  min: 1, 
-                  max: currentItem.remainingStock 
-                }}
-                size={isMobile ? "small" : "medium"}
-                disabled={currentItem.weight > 0} // Disable if weight is being used
-                helperText={currentItem.weight > 0 ? "Using weight" : ""}
-              />
-            </Grid>
-            <Grid item xs={6} md={2}>
-              <TextField
-                fullWidth
-                label="Weight (kg)"
-                type="number"
-                value={currentItem.weight}
-                onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
-                inputProps={{ 
-                  min: 0, 
-                  step: 0.1 
-                }}
-                size={isMobile ? "small" : "medium"}
-                helperText={currentItem.weight > 0 ? "Using weight for total" : "Optional"}
-              />
-            </Grid>
-            <Grid item xs={6} md={2}>
-              <TextField
-                fullWidth
-                label="Rate"
-                type="number"
-                value={currentItem.rate}
-                onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
-                inputProps={{ min: 0 }}
-                size={isMobile ? "small" : "medium"}
-                helperText={currentItem.weight > 0 ? "Per kg" : "Per unit"}
-              />
-            </Grid>
-            <Grid item xs={6} md={2}>
-              <TextField
-                fullWidth
-                label="Total"
-                type="number"
-                value={currentItem.total}
-                disabled
-                InputProps={{ readOnly: true }}
-                size={isMobile ? "small" : "medium"}
-                helperText={currentItem.weight > 0 ? "Weight × Rate" : "Quantity × Rate"}
-              />
-            </Grid>
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <IconButton 
-                color="primary" 
-                onClick={handleAddItem}
-                disabled={!selectedStock || (!currentItem.quantity && !currentItem.weight) || !currentItem.rate}
-                size={isMobile ? "small" : "medium"}
-              >
-                <AddIcon />
-              </IconButton>
-            </Grid>
+          
+          {/* Invoice Number and Date */}
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Invoice Number"
+              value={invoiceNumber}
+              disabled
+              variant="outlined"
+              InputProps={{
+                readOnly: true,
+                sx: { bgcolor: 'action.hover' }
+              }}
+            />
           </Grid>
-        </Paper>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Invoice Date"
+              type="date"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Grid>
 
-        <TableContainer component={Paper} elevation={2}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <StyledTableCell>Item Name</StyledTableCell>
-                <StyledTableCell>Type</StyledTableCell>
-                <StyledTableCell align="right">Quantity</StyledTableCell>
-                <StyledTableCell align="right">Weight (kg)</StyledTableCell>
-                <StyledTableCell align="right">Rate</StyledTableCell>
-                <StyledTableCell align="right">Total</StyledTableCell>
-                <StyledTableCell align="center">Actions</StyledTableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => (
-                <StyledTableRow key={item.id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.type}</TableCell>
-                  <TableCell align="right">{item.quantity}</TableCell>
-                  <TableCell align="right">{item.weight}</TableCell>
-                  <TableCell align="right">{item.rate}</TableCell>
-                  <TableCell align="right">{item.total}</TableCell>
-                  <TableCell align="center">
-                    <IconButton color="error" onClick={() => handleRemoveItem(item.id)}>
-                      <DeleteIcon />
-                    </IconButton>
+          {/* Customer Details Section */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Customer Details</Typography>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Customer Name"
+              value={customer?.name || ''}
+              disabled
+              variant="outlined"
+              InputProps={{
+                readOnly: true,
+                sx: { bgcolor: 'action.hover' }
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Contact Number"
+              value={customer?.contactNumber || ''}
+              disabled
+              variant="outlined"
+              InputProps={{
+                readOnly: true,
+                sx: { bgcolor: 'action.hover' }
+              }}
+            />
+          </Grid>
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Add Items
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  options={stockItems}
+                  getOptionLabel={(option) => `${option.name} (Stock: ${option.remainingStock})`}
+                  fullWidth
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Select Item"
+                      ref={itemInputRef}
+                      size={isMobile ? "small" : "medium"}
+                    />
+                  )}
+                  onChange={handleItemSelect}
+                  value={selectedStock}
+                  isOptionEqualToValue={(option, value) => option.name === value.name}
+                />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Quantity"
+                  type="number"
+                  value={currentItem.quantity}
+                  onChange={(e) => updateItemCalculations('quantity', parseFloat(e.target.value))}
+                  inputProps={{ 
+                    min: 1, 
+                    max: currentItem.remainingStock 
+                  }}
+                  size={isMobile ? "small" : "medium"}
+                  disabled={currentItem.weight > 0} // Disable if weight is being used
+                  helperText={currentItem.weight > 0 ? "Using weight" : ""}
+                />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Weight (kg)"
+                  type="number"
+                  value={currentItem.weight}
+                  onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
+                  inputProps={{ 
+                    min: 0, 
+                    step: 0.1 
+                  }}
+                  size={isMobile ? "small" : "medium"}
+                  helperText={currentItem.weight > 0 ? "Using weight for total" : "Optional"}
+                />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Rate"
+                  type="number"
+                  value={currentItem.rate}
+                  onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
+                  inputProps={{ min: 0 }}
+                  size={isMobile ? "small" : "medium"}
+                  helperText={currentItem.weight > 0 ? "Per kg" : "Per unit"}
+                />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Total"
+                  type="number"
+                  value={currentItem.total}
+                  disabled
+                  InputProps={{ readOnly: true }}
+                  size={isMobile ? "small" : "medium"}
+                  helperText={currentItem.weight > 0 ? "Weight × Rate" : "Quantity × Rate"}
+                />
+              </Grid>
+              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <IconButton 
+                  color="primary" 
+                  onClick={handleAddItem}
+                  disabled={!selectedStock || (!currentItem.quantity && !currentItem.weight) || !currentItem.rate}
+                  size={isMobile ? "small" : "medium"}
+                >
+                  <AddIcon />
+                </IconButton>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          <TableContainer component={Paper} elevation={2}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <StyledTableCell>Item Name</StyledTableCell>
+                  <StyledTableCell>Type</StyledTableCell>
+                  <StyledTableCell align="right">Quantity</StyledTableCell>
+                  <StyledTableCell align="right">Weight (kg)</StyledTableCell>
+                  <StyledTableCell align="right">Rate</StyledTableCell>
+                  <StyledTableCell align="right">Total</StyledTableCell>
+                  <StyledTableCell align="center">Actions</StyledTableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((item) => (
+                  <StyledTableRow key={item.id}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell>{item.type}</TableCell>
+                    <TableCell align="right">{item.quantity}</TableCell>
+                    <TableCell align="right">{item.weight}</TableCell>
+                    <TableCell align="right">{item.rate}</TableCell>
+                    <TableCell align="right">{item.total}</TableCell>
+                    <TableCell align="center">
+                      <IconButton color="error" onClick={() => handleRemoveItem(item.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </StyledTableRow>
+                ))}
+                <StyledTableRow>
+                  <TableCell colSpan={5} align="right">
+                    <Typography variant="subtitle1">
+                      <strong>Grand Total:</strong>
+                    </Typography>
                   </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="subtitle1">
+                      <strong>{calculateGrandTotal()}</strong>
+                    </Typography>
+                  </TableCell>
+                  <TableCell />
                 </StyledTableRow>
-              ))}
-              <StyledTableRow>
-                <TableCell colSpan={5} align="right">
-                  <Typography variant="subtitle1">
-                    <strong>Grand Total:</strong>
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">
-                  <Typography variant="subtitle1">
-                    <strong>{calculateGrandTotal()}</strong>
-                  </Typography>
-                </TableCell>
-                <TableCell />
-              </StyledTableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Grid>
       </DialogContent>
 
       <Divider />

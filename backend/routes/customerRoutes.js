@@ -6,7 +6,8 @@ const {
   getCustomers,
   updateCustomer,
   getCustomerLedger,
-  searchCustomers
+  searchCustomers,
+  getCustomerLedgerSummary
 } = require('../controllers/customerController');
 
 router.use(protect);
@@ -24,6 +25,7 @@ router.route('/:id/ledger')
 router.get('/search', protect, searchCustomers);
 
 router.get('/:customerId/ledger', protect, getCustomerLedger);
-// router.get('/:customerId/ledger/summary', protect, getCustomerLedgerSummary);
+
+router.get('/:id/ledger/summary', protect, getCustomerLedgerSummary);
 
 module.exports = router; 
