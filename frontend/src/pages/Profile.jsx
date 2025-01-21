@@ -101,7 +101,7 @@ const Profile = () => {
 
       <Grid container spacing={3}>
         {/* Profile Information Card */}
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={12} lg={8}>
           <Card 
             elevation={0}
             sx={{ 
@@ -209,7 +209,7 @@ const Profile = () => {
         </Grid>
 
         {/* Additional Info or Stats Card */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} lg={4}>
           <Card 
             elevation={0}
             sx={{ 

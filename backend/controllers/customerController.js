@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
 const CustomerTransaction = require('../models/CustomerTransaction');
+const Invoice = require('../models/Invoice');
 
 // Get all customers
 exports.getCustomers = async (req, res) => {
@@ -169,15 +170,13 @@ exports.getCustomerLedger = async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 
-    console.log(startDate, endDate);
+    // If no dates provided, default to current month
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = endDate ? new Date(endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
 
     const customer = await Customer.findOne({
       _id: id,
       createdBy: req.user._id
-    }).populate({
-      path: 'transactions.transactionId',
-      model: 'CustomerTransaction',
-      select: 'transactions currentBalance'
     });
 
     if (!customer) {
@@ -187,66 +186,59 @@ exports.getCustomerLedger = async (req, res) => {
       });
     }
 
-    // Get unique transactions by transactionId
-    const uniqueTransactions = customer.transactions.reduce((acc, curr) => {
-      const existingTrans = acc.find(t => 
-        t.transactionId._id.toString() === curr.transactionId._id.toString() &&
-        t.date.getTime() === new Date(curr.date).getTime()
-      );
-      
-      if (!existingTrans) {
-        acc.push(curr);
+    // Get transactions with date filter
+    const transactions = await CustomerTransaction.find({
+      customerId: customer._id,
+      'transactions.date': {
+        $gte: start,
+        $lte: end
       }
-      return acc;
-    }, []);
+    }).select('transactions currentBalance createdAt');
 
-    // Filter and format transactions
-    const formattedTransactions = uniqueTransactions
-      .filter(trans => {
-        if (!startDate || !endDate) return true;
-        const transDate = new Date(trans.date);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return transDate >= start && transDate <= end;
-      })
-      .map(trans => {
-        const transactionDetails = trans.transactionId.transactions.find(t => 
-          new Date(t.date).getTime() === new Date(trans.date).getTime()
-        );
-        
-        if (!transactionDetails) return null;
+    // Get invoices with date filter
+    const invoices = await Invoice.find({
+      customer: customer._id,
+      createdAt: {
+        $gte: start,
+        $lte: end
+      }
+    }).select('invoiceNumber grandTotal remainingBalance createdAt');
 
-        return {
-          date: trans.date,
-          transactionId: trans.transactionId._id,
-          transactionNumber: transactionDetails.transactionNumber,
-          amount: transactionDetails.amount,
-          modeOfPayment: transactionDetails.modeOfPayment,
-          notifiedOnWhatsapp: transactionDetails.notifiedOnWhatsapp,
-          balanceAfter: trans.transactionId.currentBalance
-        };
-      })
-      .filter(Boolean);
+    // Format transactions
+    const formattedTransactions = transactions.flatMap(trans => 
+      (trans.transactions || []).map(t => ({
+        date: t.date,
+        type: "Transaction",
+        description: `Transaction - Receipt #${t.transactionNumber}`,
+        amount: -t.amount,
+        transactionMode: t.modeOfPayment,
+        createdAt: trans.createdAt,
+        balanceAfterEntry: trans.currentBalance
+      }))
+    );
 
-    // Calculate summary
-    const summary = {
-      totalTransactions: formattedTransactions.length,
-      totalPayments: formattedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
-      paymentModes: {
-        cash: formattedTransactions
-          .filter(t => t.modeOfPayment === 'cash')
-          .reduce((sum, t) => sum + (t.amount || 0), 0),
-        upi: formattedTransactions
-          .filter(t => t.modeOfPayment === 'upi')
-          .reduce((sum, t) => sum + (t.amount || 0), 0),
-        bank_transfer: formattedTransactions
-          .filter(t => t.modeOfPayment === 'bank_transfer')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
-      },
-      openingBalance: customer.openingBalance,
-      closingBalance: customer.currentBalance
-    };
+    // Format invoices
+    const formattedInvoices = invoices.map(invoice => ({
+      date: invoice.createdAt,
+      type: "Invoice",
+      description: `Invoice #${invoice.invoiceNumber}`,
+      amount: invoice.grandTotal,
+      remainingBalance: invoice.remainingBalance,
+      transactionMode: null,
+      createdAt: invoice.createdAt,
+      balanceAfterEntry: invoice.remainingBalance
+    }));
+
+    // Combine and sort all entries
+    const ledgerDetails = [...formattedTransactions, ...formattedInvoices]
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    // Calculate running balance
+    let runningBalance = customer.openingBalance;
+    ledgerDetails.forEach(entry => {
+      runningBalance += entry.amount;
+      entry.balanceAfterEntry = runningBalance;
+    });
 
     res.json({
       success: true,
@@ -254,18 +246,11 @@ exports.getCustomerLedger = async (req, res) => {
         customerInfo: {
           name: customer.name,
           contactNumber: customer.contactNumber,
-          address: customer.address,
-          openingBalance: customer.openingBalance,
-          currentBalance: customer.currentBalance,
-          whatsappNotification: customer.whatsappNotification
+          address: customer.address
         },
-        summary,
-        transactions: formattedTransactions.map(t => ({
-          ...t,
-          date: new Date(t.date).toLocaleDateString('en-IN'),
-          amount: Number(t.amount).toFixed(2),
-          balanceAfter: Number(t.balanceAfter).toFixed(2)
-        }))
+        startingBalance: customer.openingBalance,
+        currentBalance: runningBalance,
+        ledgerDetails
       }
     });
 
@@ -278,20 +263,18 @@ exports.getCustomerLedger = async (req, res) => {
   }
 };
 
-
-
 exports.getCustomerLedgerSummary = async (req, res) => {
   try {
     const { id } = req.params;
-    const { year, month } = req.query;
+    const { startDate, endDate } = req.query;
 
-    const customer = await Customer.findById(id)
-      .select('name contactNumber currentBalance transactions')
-      .populate({
-        path: 'transactions.transactionId',
-        model: 'CustomerTransaction',
-        select: 'transactions'
-      });
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = endDate ? new Date(endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+
+    const customer = await Customer.findOne({
+      _id: id,
+      createdBy: req.user._id
+    });
 
     if (!customer) {
       return res.status(404).json({
@@ -300,55 +283,117 @@ exports.getCustomerLedgerSummary = async (req, res) => {
       });
     }
 
-    // Calculate date range for the month
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Get invoices with populated items
+    const invoices = await Invoice.find({
+      customer: customer._id,
+      createdAt: {
+        $gte: start,
+        $lte: end
+      }
+    }).populate({
+      path: 'items.itemId',
+      select: 'name unit category'
+    });
 
-    // Get monthly transactions
-    let monthlyTransactions = [];
-    customer.transactions.forEach(t => {
-      if (t.transactionId && t.transactionId.transactions) {
-        const transaction = t.transactionId.transactions[0];
-        if (transaction) {
-          const transDate = new Date(transaction.date);
-          if (transDate >= startDate && transDate <= endDate) {
-            monthlyTransactions.push({
-              date: transaction.date,
-              amount: transaction.amount,
-              modeOfPayment: transaction.modeOfPayment
-            });
+    // Initialize summaries
+    const productSummary = {
+      totalAmount: 0,
+      products: {
+        milk: { quantity: 0, amount: 0, unit: 'L' },
+        eggs: { quantity: 0, amount: 0, unit: 'pcs' },
+        other: { quantity: 0, amount: 0, unit: 'units' }
+      }
+    };
+
+    const livestockSummary = {
+      totalAmount: 0,
+      items: {}
+    };
+
+    // Process invoices
+    invoices.forEach(invoice => {
+      invoice.items.forEach(item => {
+        // Skip if item or itemId is not properly populated
+        if (!item || !item.itemId) return;
+
+        const product = item.itemId;
+        const productName = product.name ? product.name.toLowerCase() : '';
+
+        if (item.itemType === 'PRODUCT') {
+          productSummary.totalAmount += item.total || 0;
+
+          if (productName.includes('milk')) {
+            productSummary.products.milk.quantity += item.quantity || 0;
+            productSummary.products.milk.amount += item.total || 0;
+          } else if (productName.includes('egg')) {
+            productSummary.products.eggs.quantity += item.quantity || 0;
+            productSummary.products.eggs.amount += item.total || 0;
+          } else {
+            productSummary.products.other.quantity += item.quantity || 0;
+            productSummary.products.other.amount += item.total || 0;
           }
+        } else if (item.itemType === 'LIVESTOCK') {
+          livestockSummary.totalAmount += item.total || 0;
+
+          const productId = product._id.toString();
+          if (!livestockSummary.items[productId]) {
+            livestockSummary.items[productId] = {
+              name: product.name || 'Unknown',
+              quantity: 0,
+              amount: 0,
+              unit: product.unit || 'kg'
+            };
+          }
+          livestockSummary.items[productId].quantity += item.quantity || 0;
+          livestockSummary.items[productId].amount += item.total || 0;
         }
+      });
+    });
+
+    // Get transactions
+    const transactions = await CustomerTransaction.find({
+      customerId: customer._id,
+      'transactions.date': {
+        $gte: start,
+        $lte: end
       }
     });
 
-    // Calculate monthly summary
-    const monthlySummary = {
-      month: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
-      totalTransactions: monthlyTransactions.length,
-      totalAmount: monthlyTransactions.reduce((sum, t) => sum + t.amount, 0),
-      paymentBreakdown: {
-        cash: monthlyTransactions.filter(t => t.modeOfPayment === 'cash')
-          .reduce((sum, t) => sum + t.amount, 0),
-        upi: monthlyTransactions.filter(t => t.modeOfPayment === 'upi')
-          .reduce((sum, t) => sum + t.amount, 0),
-        bank_transfer: monthlyTransactions.filter(t => t.modeOfPayment === 'bank_transfer')
-          .reduce((sum, t) => sum + t.amount, 0)
-      },
-      balanceSummary: {
-        openingBalance: customer.currentBalance + monthlyTransactions.reduce((sum, t) => sum + t.amount, 0),
-        closingBalance: customer.currentBalance
-      }
+    // Calculate transaction summary
+    const transactionSummary = {
+      totalTransactions: transactions.reduce((sum, trans) => sum + (trans.transactions?.length || 0), 0),
+      totalAmount: transactions.reduce((sum, trans) => 
+        sum + (trans.transactions || []).reduce((tSum, t) => tSum + (t.amount || 0), 0), 0),
+      byMode: transactions.reduce((modes, trans) => {
+        (trans.transactions || []).forEach(t => {
+          if (t.modeOfPayment) {
+            modes[t.modeOfPayment] = (modes[t.modeOfPayment] || 0) + (t.amount || 0);
+          }
+        });
+        return modes;
+      }, {})
     };
 
     res.json({
       success: true,
       data: {
-        customerInfo: {
-          name: customer.name,
-          contactNumber: customer.contactNumber
+        period: {
+          from: start,
+          to: end
         },
-        summary: monthlySummary
+        customerInfo: {
+          name: customer.name || '',
+          contactNumber: customer.contactNumber || '',
+          address: customer.address || ''
+        },
+        transactions: transactionSummary,
+        products: productSummary,
+        livestock: livestockSummary,
+        balances: {
+          opening: customer.openingBalance || 0,
+          current: customer.currentBalance || 0,
+          net: (customer.currentBalance || 0) - (customer.openingBalance || 0)
+        }
       }
     });
 

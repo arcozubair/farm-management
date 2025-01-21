@@ -11,12 +11,13 @@ import {
   DialogActions,
   DialogContentText
 } from '@mui/material';
-import { Add as AddIcon, Security as SecurityIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, PersonAdd as PersonAddIcon, Security as SecurityIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import DataTable from '../components/DataTable';
 import PermissionsDialog from '../components/dialogs/PermissionsDialog';
 import UserForm from '../components/forms/UserForm';
 import * as userService from '../services/userService';
+import { DataGrid } from '@mui/x-data-grid';
+import useResponsive from '../hooks/useResponsive';
 
 const Users = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -36,6 +37,7 @@ const Users = () => {
     canAssignPermissions: false,
     canRevokePermissions: false
   });
+  const {isMobile} = useResponsive();
 
   useEffect(() => {
     fetchUsers();
@@ -77,14 +79,55 @@ return i.role === 'user'
   };
 
   const columns = [
-    { field: 'username', headerName: 'Username', flex: 1 },
-    { field: 'name', headerName: 'Name', flex: 1 },
-    { field: 'email', headerName: 'Email', flex: 1 },
-    { field: 'role', headerName: 'Role', flex: 1 },
+    { 
+      field: 'username', 
+      headerName: 'Username', 
+      flex: 1,
+      minWidth: 130,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+          {params.value}
+        </div>
+      )
+    },
+    { 
+      field: 'name', 
+      headerName: 'Name', 
+      flex: 1,
+      minWidth: 130,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+          {params.value}
+        </div>
+      )
+    },
+    { 
+      field: 'email', 
+      headerName: 'Email', 
+      flex: 1,
+      minWidth: 180,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+          {params.value}
+        </div>
+      )
+    },
+    { 
+      field: 'role', 
+      headerName: 'Role', 
+      flex: 1,
+      minWidth: 100,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+          {params.value}
+        </div>
+      )
+    },
     {
       field: 'actions',
       headerName: 'Actions',
       flex: 1,
+      minWidth: 120,
       renderCell: (params) => (
         <Box>
           <IconButton
@@ -163,19 +206,94 @@ return i.role === 'user'
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">User Management</Typography>
+    <Box sx={{ 
+      p: { xs: 1, sm: 2, md: 3 },
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden' 
+    }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between', 
+        gap: 2,
+        mb: 3 
+      }}>
+        <Typography  variant={isMobile ? "h5" : "h4"}
+                sx={{ fontWeight: 600, color: 'primary.main' }}>
+          User Management
+        </Typography>
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={!isMobile && <PersonAddIcon />}
           onClick={() => setIsDialogOpen(true)}
+          sx={{ 
+            width: { xs: '40px', sm: 'auto' },
+            minWidth: { xs: '40px', sm: '100px' },
+            height: { xs: '40px', },
+            borderRadius: isMobile ? '50%' : '8px',
+            p: isMobile ? 0 : 2
+          }}
         >
-          Add User
+          {isMobile ? <PersonAddIcon /> : 'Add User'}
         </Button>
       </Box>
 
-      <DataTable rows={users} columns={columns} loading={loading} />
+      <Box sx={{ 
+        width: '100%',
+        overflowX: 'auto'
+      }}>
+        <DataGrid 
+          rows={users} 
+          columns={columns} 
+          loading={loading}   
+          getRowId={(row) => row._id}
+          autoHeight
+          pagination
+          pageSize={10}
+          rowsPerPageOptions={[10, 25, 50]}
+          disableSelectionOnClick
+          sx={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            '& .MuiDataGrid-main': {
+              overflow: 'auto'
+            },
+            '& .MuiDataGrid-cell': {
+              borderBottom: 'none',
+              padding: '16px',
+            },
+            '& .MuiDataGrid-columnHeaders': {
+              backgroundColor: '#f8f9fa',
+              borderBottom: 'none',
+              padding: '16px',
+            },
+            '& .MuiDataGrid-row': {
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+              },
+            },
+            '& .MuiDataGrid-virtualScroller': {
+              overflow: 'auto',
+              '&::-webkit-scrollbar': {
+                height: '8px',
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: '#f1f1f1',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: '#888',
+                borderRadius: '4px',
+              },
+            },
+            border: 'none',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          }} 
+        />
+      </Box>
 
       {/* Add User Dialog */}
       <Dialog 

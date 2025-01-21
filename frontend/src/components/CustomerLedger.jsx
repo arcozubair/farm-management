@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,489 +20,363 @@ import {
   IconButton,
   CircularProgress,
   TextField,
+  Stack,
   Divider
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import CloseIcon from '@mui/icons-material/Close';
-import ReceiptIcon from '@mui/icons-material/Receipt';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import PaymentsIcon from '@mui/icons-material/Payments';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import PrintIcon from '@mui/icons-material/Print';
+import DownloadIcon from '@mui/icons-material/Download';
+import SummarizeIcon from '@mui/icons-material/Summarize';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import customerService from '../services/customerService';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import CustomerLedgerSummary from './CustomerLedgerSummary';
 
 const CustomerLedger = ({ open, onClose, customer }) => {
   const [loading, setLoading] = useState(false);
   const [ledgerData, setLedgerData] = useState(null);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [error, setError] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
-  const fetchLedger = async () => {
-    if (!customer?._id || !startDate || !endDate) return;
-    
+  useEffect(() => {
+    if (open && customer?._id) {
+      // Set default date range to current month
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      setStartDate(firstDay);
+      setEndDate(lastDay);
+      
+      // Fetch ledger data with default date range
+      fetchLedgerData(firstDay, lastDay);
+    }
+  }, [open, customer]);
+
+  const fetchLedgerData = async (start, end) => {
     try {
       setLoading(true);
-      setError('');
-      const response = await customerService.getCustomerLedger(customer._id, {
-        startDate,
-        endDate
-      });
-      
+      const response = await customerService.getCustomerLedger(
+        customer._id,
+        start?.toISOString(),
+        end?.toISOString()
+      );
       if (response.success) {
         setLedgerData(response.data);
-      } else {
-        setError(response.message || 'Failed to fetch ledger data');
       }
     } catch (error) {
-      setError(error.message || 'Failed to fetch ledger data');
+      console.error('Error fetching ledger:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (startDate && endDate) {
-      fetchLedger();
-    }
-  }, [startDate, endDate, customer]);
-
-  const handleDateSubmit = () => {
+  const handleDateRangeChange = () => {
     if (!startDate || !endDate) {
-      setError('Please select both start and end dates');
+      // Show error message using your notification system
       return;
     }
-    if (startDate > endDate) {
-      setError('Start date cannot be after end date');
-      return;
-    }
-    fetchLedger();
-  };
-
-  // Helper function to ensure valid dates
-  const ensureValidDate = (dateString) => {
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date) ? date : null;
-  };
-
-  // Calculate totals by payment mode
-  const calculatePaymentModeTotals = (transactions) => {
-    if (!transactions || !Array.isArray(transactions)) {
-      return { cash: 0, account_transfer: 0 };
-    }
-
-    return transactions.reduce((acc, trans) => ({
-      cash: acc.cash + (trans.modeOfPayment === 'cash' ? parseFloat(trans.amount) || 0 : 0),
-      account_transfer: acc.account_transfer + (trans.modeOfPayment === 'account_transfer' ? parseFloat(trans.amount) || 0 : 0)
-    }), { cash: 0, account_transfer: 0 });
-  };
-
-  const paymentTotals = calculatePaymentModeTotals(ledgerData?.transactions);
-
-  const handlePrint = () => {
-    // Create a new window for the print layout
-    const printWindow = window.open('', '_blank');
     
-    // Generate the print content with proper formatting
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Customer Ledger - ${customer?.name}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              line-height: 1.6;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 20px;
-              padding-bottom: 10px;
-              border-bottom: 2px solid #333;
-            }
-            .customer-info {
-              margin-bottom: 20px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f4f4f4;
-            }
-            .summary {
-              margin-top: 20px;
-              border-top: 2px solid #333;
-              padding-top: 10px;
-            }
-            .text-right {
-              text-align: right;
-            }
-            .total-row {
-              font-weight: bold;
-              background-color: #f4f4f4;
-            }
-            @media print {
-              @page {
-                size: landscape;
-                margin: 1cm;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>Customer Ledger</h2>
-            <p>Period: ${formatDate(startDate)} to ${formatDate(endDate)}</p>
-          </div>
-          
-          <div class="customer-info">
-            <h3>Customer Details</h3>
-            <p><strong>Name:</strong> ${ledgerData.customerInfo.name}</p>
-            <p><strong>Contact:</strong> ${ledgerData.customerInfo.contactNumber}</p>
-            <p><strong>Address:</strong> ${ledgerData.customerInfo.address}</p>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Transaction Number</th>
-                <th>Description</th>
-                <th class="text-right">Debit (DR)</th>
-                <th class="text-right">Credit (CR)</th>
-                <th class="text-right">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${formatDate(startDate)}</td>
-                <td>-</td>
-                <td>Opening Balance</td>
-                <td class="text-right">-</td>
-                <td class="text-right">-</td>
-                <td class="text-right">${formatCurrency(ledgerData.customerInfo.openingBalance)}</td>
-              </tr>
-              ${ledgerData.transactions
-                .sort((a, b) => ensureValidDate(a.date) - ensureValidDate(b.date))
-                .map((transaction, index, array) => {
-                  const previousTransactions = array.slice(0, index);
-                  const totalPreviousAmount = previousTransactions.reduce(
-                    (sum, t) => sum + (parseFloat(t.amount) || 0), 
-                    0
-                  );
-                  const runningBalance = ledgerData.customerInfo.openingBalance - 
-                    totalPreviousAmount - (parseFloat(transaction.amount) || 0);
-                  
-                  return `
-                    <tr>
-                      <td>${(transaction.date)}</td>
-                      <td>${transaction.transactionNumber}</td>
-                      <td>Payment via ${transaction.modeOfPayment.replace('_', ' ')}</td>
-                      <td class="text-right">${formatCurrency(transaction.amount)}</td>
-                      <td class="text-right">-</td>
-                      <td class="text-right">${formatCurrency(runningBalance)}</td>
-                    </tr>
-                  `;
-                }).join('')}
-            
-            </tbody>
-          </table>
-
-          <div class="summary" style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-            <h3 style="width: 100%;">Payment Mode Summary</h3>
-            <div style="flex: 1; margin-right: 20px;">
-              <p><strong>Cash Payments:</strong> ${formatCurrency(paymentTotals.cash)}</p>
-              <p><strong>Account Transfers:</strong> ${formatCurrency(paymentTotals.account_transfer)}</p>
-            </div>
-            <div style="flex: 1;">
-              <p><strong>Total Transactions:</strong> ${ledgerData.summary.totalTransactions}</p>
-              <p><strong>Closing Balance:</strong> ${ledgerData.summary.closingBalance}</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Write the content to the new window and print
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    // Set end date to end of day
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
     
-    // Wait for all content to load before printing
-    printWindow.onload = function() {
-      printWindow.print();
-      // Close the window after printing (optional)
-      printWindow.onafterprint = function() {
-        printWindow.close();
-      };
-    };
+    fetchLedgerData(startDate, endOfDay);
+  };
+
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2
+    }).format(Math.abs(amount)).replace("₹", "₹ ");
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const fetchSummaryData = async () => {
+    try {
+      setSummaryLoading(true);
+      const response = await customerService.getCustomerLedgerSummary(
+        customer._id,
+        startDate?.toISOString(),
+        endDate?.toISOString()
+      );
+      if (response.success) {
+        setSummaryData(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching summary:', error);
+    } finally {
+      setSummaryLoading(false);
+    }
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="lg" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
       fullWidth
-      PaperProps={{ sx: { minHeight: '80vh' } }}
+      PaperProps={{
+        sx: {
+          height: '90vh',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }
+      }}
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
-            Customer Ledger - {customer?.name}
-          </Typography>
-          <Box>
-            {ledgerData && (
-              <IconButton onClick={handlePrint} sx={{ mr: 1 }} title="Print Ledger">
-                <PrintIcon />
-              </IconButton>
-            )}
-            <IconButton onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
+          <Typography variant="h5" fontWeight="bold">Customer Ledger</Typography>
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent dividers id="ledger-content">
-        {/* Date Selection */}
-        <Box mb={3} className="no-print">
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Start Date"
-                  value={startDate}
-                  onChange={setStartDate}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="End Date"
-                  value={endDate}
-                  onChange={setEndDate}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Button 
-                variant="contained" 
-                onClick={handleDateSubmit}
-                disabled={!startDate || !endDate}
-                fullWidth
-              >
-                View Ledger
-              </Button>
-            </Grid>
-          </Grid>
-          {error && (
-            <Typography color="error" sx={{ mt: 1 }}>
-              {error}
-            </Typography>
-          )}
-        </Box>
-
+      <DialogContent sx={{ flex: 1, overflow: 'auto' }}>
         {loading ? (
-          <Box display="flex" justifyContent="center" p={3}>
+          <Box display="flex" justifyContent="center" alignItems="center" height="100%">
             <CircularProgress />
           </Box>
         ) : ledgerData ? (
           <>
-            {/* Customer Info Cards */}
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              <Grid item xs={12} md={4}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Customer Details
+            {/* Date Range Selection */}
+            <Card sx={{ mb: 3, p: 2 }}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={3}>
+                    <DatePicker
+                      label="From Date"
+                      value={startDate}
+                      onChange={setStartDate}
+                      renderInput={(params) => <TextField {...params} fullWidth />}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <DatePicker
+                      label="To Date"
+                      value={endDate}
+                      onChange={setEndDate}
+                      renderInput={(params) => <TextField {...params} fullWidth />}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      variant="contained"
+                      startIcon={<FilterAltIcon />}
+                      onClick={handleDateRangeChange}
+                      fullWidth
+                    >
+                      Filter
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Stack direction="row" spacing={2} justifyContent="flex-end">
+                      <Button startIcon={<PrintIcon />}>
+                        Print
+                      </Button>
+                      <Button startIcon={<DownloadIcon />}>
+                        Export
+                      </Button>
+                    </Stack>
+                  </Grid>
+                  <Grid item xs={12} md={1}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<SummarizeIcon />}
+                      onClick={() => {
+                        setShowSummary(true);
+                        fetchSummaryData();
+                      }}
+                    >
+                      View Summary
+                    </Button>
+                  </Grid>
+                </Grid>
+              </LocalizationProvider>
+            </Card>
+
+            {/* Customer Info Card - Enhanced */}
+            <Card sx={{ mb: 3, backgroundColor: '#f8f9fa' }}>
+              <CardContent>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      {ledgerData.customerInfo.name}
                     </Typography>
-                    <Typography><strong>Name:</strong> {ledgerData.customerInfo.name}</Typography>
-                    <Typography><strong>Contact:</strong> {ledgerData.customerInfo.contactNumber}</Typography>
-                    <Typography><strong>Address:</strong> {ledgerData.customerInfo.address}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={8}>
-                <Card>
-                  <CardContent>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={4}>
-                        <Box textAlign="center">
-                          <AccountBalanceIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                          <Typography variant="subtitle2">Opening Balance</Typography>
-                          <Typography variant="h6">₹{ledgerData.summary.openingBalance}</Typography>
-                        </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Contact: {ledgerData.customerInfo.contactNumber}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Address: {ledgerData.customerInfo.address}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={8}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} md={4}>
+                        <Card elevation={0} sx={{ backgroundColor: 'primary.light', p: 2 }}>
+                          <Typography variant="subtitle2" color="primary.contrastText">
+                            Opening Balance
+                          </Typography>
+                          <Typography variant="h6" color="primary.contrastText">
+                            {formatAmount(ledgerData.startingBalance)}
+                          </Typography>
+                        </Card>
                       </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Box textAlign="center">
-                          <PaymentsIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                          <Typography variant="subtitle2">Total Transactions</Typography>
-                          <Typography variant="h6">{ledgerData.summary.totalTransactions}</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Box textAlign="center">
-                          <ReceiptIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                          <Typography variant="subtitle2">Closing Balance</Typography>
-                          <Typography variant="h6">₹{ledgerData.summary.closingBalance}</Typography>
-                        </Box>
+                      <Grid item xs={6} md={4}>
+                        <Card elevation={0} sx={{ backgroundColor: 'secondary.light', p: 2 }}>
+                          <Typography variant="subtitle2" color="secondary.contrastText">
+                            Current Balance
+                          </Typography>
+                          <Typography variant="h6" color="secondary.contrastText">
+                            {formatAmount(ledgerData.currentBalance)}
+                          </Typography>
+                        </Card>
                       </Grid>
                     </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
 
-            {/* Transactions Table */}
-            <TableContainer component={Paper}>
-              <Table>
+            {/* Enhanced Ledger Table */}
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                mb: 3,
+                boxShadow: 3,
+                "& .MuiTableCell-head": {
+                  backgroundColor: "primary.main",
+                  color: "primary.contrastText",
+                  fontWeight: "bold"
+                }
+              }}
+            >
+              <Table size="small">
                 <TableHead>
-                  <TableRow>
+                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                     <TableCell>Date</TableCell>
-                    <TableCell>Transaction Number</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Debit (DR)</TableCell>
-                    <TableCell align="right">Credit (CR)</TableCell>
+                    <TableCell>Particulars</TableCell>
+                    <TableCell align="right">DR</TableCell>
+                    <TableCell align="right">CR</TableCell>
+                    <TableCell>Mode</TableCell>
                     <TableCell align="right">Balance</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {/* Opening Balance Row */}
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell>
-                      {formatDate(startDate || new Date())}
-                    </TableCell>
-                    <TableCell>-</TableCell>
+                  <TableRow>
+                    <TableCell>{formatDate(ledgerData.ledgerDetails[0]?.date)}</TableCell>
                     <TableCell><strong>Opening Balance</strong></TableCell>
                     <TableCell align="right">-</TableCell>
                     <TableCell align="right">-</TableCell>
+                    <TableCell>-</TableCell>
                     <TableCell align="right">
-                      <strong>{formatCurrency(ledgerData?.customerInfo?.openingBalance)}</strong>
+                      <strong>{formatAmount(ledgerData.startingBalance)}</strong>
                     </TableCell>
                   </TableRow>
 
-                  {ledgerData?.transactions
-                    .sort((a, b) => ensureValidDate(a.date) - ensureValidDate(b.date))
-                    .map((transaction, index, array) => {
-                      // Calculate running balance
-                      const previousTransactions = array.slice(0, index);
-                      const totalPreviousAmount = previousTransactions.reduce(
-                        (sum, t) => sum + (parseFloat(t.amount) || 0), 
-                        0
-                      );
-                      const runningBalance = ledgerData.customerInfo.openingBalance - 
-                        totalPreviousAmount - (parseFloat(transaction.amount) || 0);
-
-                      return (
-                        <TableRow key={transaction.transactionId || index}>
-                          <TableCell>{transaction.date}</TableCell>
-                          <TableCell>{transaction.transactionNumber}</TableCell>
-                          <TableCell>
-                            Payment via {transaction.modeOfPayment.replace('_', ' ')}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(transaction.amount)}
-                          </TableCell>
-                          <TableCell align="right">-</TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(runningBalance)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                  })}
-
-                  {/* Closing Balance Row */}
-                 
-
-                  {(!ledgerData?.transactions || ledgerData.transactions.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        No transactions found for the selected date range
+                  {ledgerData.ledgerDetails.map((entry, index) => (
+                    <TableRow 
+                      key={index}
+                      sx={{
+                        backgroundColor: entry.type === 'Invoice' 
+                          ? 'rgba(76, 175, 80, 0.04)' 
+                          : 'rgba(244, 67, 54, 0.04)'
+                      }}
+                    >
+                      <TableCell>{formatDate(entry.date)}</TableCell>
+                      <TableCell>{entry.description}</TableCell>
+                      <TableCell align="right" sx={{ color: 'error.main' }}>
+                        {entry.type === 'Transaction' ? formatAmount(Math.abs(entry.amount)) : '-'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'success.main' }}>
+                        {entry.type === 'Invoice' ? formatAmount(entry.amount) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {entry.transactionMode 
+                          ? entry.transactionMode.replace('_', ' ').toUpperCase() 
+                          : '-'}
+                      </TableCell>
+                      <TableCell align="right">
+                        {formatAmount(entry.balanceAfterEntry)}
                       </TableCell>
                     </TableRow>
-                  )}
+                  ))}
+
+                  {/* Closing Balance Row */}
+                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableCell colSpan={5}>
+                      <strong>Closing Balance</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>{formatAmount(ledgerData.currentBalance)}</strong>
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
 
-            {/* Summary Cards */}
-            <Box mt={3}>
-              <Typography variant="h6" gutterBottom>
-                Payment Mode Summary
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Cash Payments
-                      </Typography>
-                      <Typography variant="h6">
-                        {formatCurrency(paymentTotals.cash)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Account Transfers
-                      </Typography>
-                      <Typography variant="h6">
-                        {formatCurrency(paymentTotals.account_transfer)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Opening Balance
-                      </Typography>
-                      <Typography variant="h6">
-                        {formatCurrency(ledgerData?.summary?.openingBalance)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Closing Balance
-                      </Typography>
-                      <Typography variant="h6">
-                        {formatCurrency(ledgerData?.summary?.closingBalance)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
+            {/* Enhanced Summary Cards */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Card sx={{ backgroundColor: 'success.light' }}>
+                  <CardContent>
+                    <Typography color="success.contrastText" gutterBottom>
+                      Total Invoices (CR)
+                    </Typography>
+                    <Typography variant="h5" color="success.contrastText">
+                      {formatAmount(
+                        ledgerData.ledgerDetails
+                          .filter(entry => entry.type === 'Invoice')
+                          .reduce((sum, entry) => sum + entry.amount, 0)
+                      )}
+                    </Typography>
+                  </CardContent>
+                </Card>
               </Grid>
-            </Box>
+              <Grid item xs={12} md={4}>
+                <Card sx={{ backgroundColor: 'error.light' }}>
+                  <CardContent>
+                    <Typography color="error.contrastText" gutterBottom>
+                      Total Payments (DR)
+                    </Typography>
+                    <Typography variant="h5" color="error.contrastText">
+                      {formatAmount(Math.abs(
+                        ledgerData.ledgerDetails
+                          .filter(entry => entry.type === 'Transaction')
+                          .reduce((sum, entry) => sum + entry.amount, 0)
+                      ))}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </>
         ) : null}
       </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose} color="primary">
-          Close
-        </Button>
-      </DialogActions>
+      <CustomerLedgerSummary
+        open={showSummary}
+        onClose={() => setShowSummary(false)}
+        summaryData={summaryData}
+        loading={summaryLoading}
+      />
     </Dialog>
   );
 };

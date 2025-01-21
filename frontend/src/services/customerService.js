@@ -43,20 +43,13 @@ const customerService = {
     }
   },
 
-  getCustomerLedger: async (customerId, dateRange = null) => {
+  getCustomerLedger: async (customerId, startDate, endDate) => {
     try {
-      if (!customerId) {
-        throw new Error('Customer ID is required');
-      }
-
-      let url = `${API_URL}/${customerId}/ledger`;
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       
-      if (dateRange?.startDate && dateRange?.endDate) {
-       
-        url += `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
-      }
-      
-      const response = await api.get(url);
+      const response = await api.get(`${API_URL}/${customerId}/ledger?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error in getCustomerLedger:', {
@@ -79,6 +72,19 @@ const customerService = {
     } catch (error) {
       console.error('Error in searchCustomers:', error.response?.data || error);
       throw error.response?.data || error;
+    }
+  },
+
+  getCustomerLedgerSummary: async (customerId, startDate, endDate) => {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const response = await api.get(`${API_URL}/${customerId}/ledger/summary?${params}`);
+      return response.data;
+    } catch (error) {
+      throw error;
     }
   },
 };

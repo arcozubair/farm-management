@@ -7,7 +7,8 @@ const errorHandler = require('./middleware/error');
 const productRoutes = require('./routes/productRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const { initializeProducts } = require('./controllers/productController');
-
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const companySettingsRoutes = require('./routes/companySettingsRoutes');
 // Initialize express
 const app = express();
 
@@ -40,7 +41,7 @@ app.use((req, res, next) => {
 });
 
 // Database connection
-mongoose.connect(config.MONGODB_URI)
+mongoose.connect(config.MONGODB_URI + '?replicaSet=rs0')
   .then(async () => {
     console.log('MongoDB Connected...');
     // Initialize products after DB connection
@@ -55,8 +56,9 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/livestock', require('./routes/livestock'));
 app.use('/api/products', productRoutes);
 app.use('/api/sales', require('./routes/sales'));
-app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/daybook', require("./routes/dayBookRoutes"));
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/company-settings', companySettingsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
