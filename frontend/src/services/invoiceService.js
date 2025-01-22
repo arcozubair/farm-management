@@ -109,4 +109,13 @@ export const searchInvoices = async (query) => {
   } catch (error) {
     throw error.response?.data || { message: 'Failed to search invoices' };
   }
+};
+
+export const getInvoicesByDate = async (date) => {
+  try {
+    const response = await api.get(`${BASE_URL}/by-date/${date}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }; 

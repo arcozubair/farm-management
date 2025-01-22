@@ -20,12 +20,13 @@ const invoiceSchema = new mongoose.Schema({
         itemType: {
             type: String,
             required: true,
-            enum: ['PRODUCT', 'LIVESTOCK']
+            enum: ['Product', 'Livestock']
         },
         name: String,
         quantity: Number,
         price: Number,
         total: Number,
+        weight: Number,
         unit: String
     }],
     grandTotal: {

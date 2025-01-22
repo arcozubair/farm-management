@@ -317,31 +317,33 @@ exports.getCustomerLedgerSummary = async (req, res) => {
         if (!item || !item.itemId) return;
 
         const product = item.itemId;
-        const productName = product.name ? product.name.toLowerCase() : '';
+        const productName = item.name ? item.name.toLowerCase() : '';
 
-        if (item.itemType === 'PRODUCT') {
+        console.log("ssss",item.name);
+
+        if (item.itemType === 'Product') {
           productSummary.totalAmount += item.total || 0;
 
           if (productName.includes('milk')) {
             productSummary.products.milk.quantity += item.quantity || 0;
             productSummary.products.milk.amount += item.total || 0;
-          } else if (productName.includes('egg')) {
+          } else if (productName.includes('eggs')) {
             productSummary.products.eggs.quantity += item.quantity || 0;
             productSummary.products.eggs.amount += item.total || 0;
           } else {
             productSummary.products.other.quantity += item.quantity || 0;
             productSummary.products.other.amount += item.total || 0;
           }
-        } else if (item.itemType === 'LIVESTOCK') {
+        } else if (item.itemType === 'Livestock') {
           livestockSummary.totalAmount += item.total || 0;
 
           const productId = product._id.toString();
           if (!livestockSummary.items[productId]) {
             livestockSummary.items[productId] = {
-              name: product.name || 'Unknown',
+              name: item.name || 'Unknown',
               quantity: 0,
               amount: 0,
-              unit: product.unit || 'kg'
+              unit: item.unit || 'kg'
             };
           }
           livestockSummary.items[productId].quantity += item.quantity || 0;

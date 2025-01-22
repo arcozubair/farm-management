@@ -59,7 +59,7 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
       style: 'currency',
       currency: 'INR',
       minimumFractionDigits: 2
-    }).format(Math.abs(amount));
+    }).format(Math.abs(amount || 0));
   };
 
   const formatDate = (dateString) => {
@@ -80,7 +80,24 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
     );
   }
 
-  if (!summaryData) return null;
+  if (!summaryData || !summaryData.customerInfo) return null;
+
+  const {
+    period = { from: new Date(), to: new Date() },
+    customerInfo = {},
+    balances = { opening: 0, current: 0, net: 0 },
+    transactions = { totalTransactions: 0, totalAmount: 0, byMode: {} },
+    invoices = { totalInvoices: 0, totalAmount: 0 },
+    products = {
+      totalAmount: 0,
+      products: {
+        milk: { quantity: 0, amount: 0 },
+        eggs: { quantity: 0, amount: 0 },
+        other: { quantity: 0, amount: 0 }
+      }
+    },
+    livestock = { totalAmount: 0, items: {} }
+  } = summaryData;
 
   return (
     <Dialog 
@@ -102,7 +119,7 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
               Ledger Summary
             </Typography>
             <Typography variant="subtitle2" color="text.secondary">
-              Period: {formatDate(summaryData.period.from)} - {formatDate(summaryData.period.to)}
+              Period: {formatDate(period.from)} - {formatDate(period.to)}
             </Typography>
           </Stack>
           <IconButton onClick={onClose}>
@@ -117,12 +134,12 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
           <Grid item xs={12}>
             <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
               <CardContent>
-                <Typography variant="h6">{summaryData.customerInfo.name}</Typography>
+                <Typography variant="h6">{customerInfo.name}</Typography>
                 <Typography variant="body2">
-                  Contact: {summaryData.customerInfo.contactNumber}
+                  Contact: {customerInfo.contactNumber}
                 </Typography>
                 <Typography variant="body2">
-                  Address: {summaryData.customerInfo.address}
+                  Address: {customerInfo.address}
                 </Typography>
               </CardContent>
             </Card>
@@ -136,16 +153,16 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
             >
               <StatItem 
                 label="Opening Balance"
-                value={formatAmount(summaryData.balances.opening)}
+                value={formatAmount(balances.opening)}
               />
               <StatItem 
                 label="Current Balance"
-                value={formatAmount(summaryData.balances.current)}
+                value={formatAmount(balances.current)}
               />
               <StatItem 
                 label="Net Change"
-                value={formatAmount(summaryData.balances.net)}
-                color={summaryData.balances.net >= 0 ? 'success' : 'error'}
+                value={formatAmount(balances.net)}
+                color={balances.net >= 0 ? 'success' : 'error'}
               />
             </SummaryCard>
           </Grid>
@@ -159,14 +176,14 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
             >
               <StatItem 
                 label="Total Transactions"
-                value={summaryData.transactions.totalTransactions}
+                value={transactions.totalTransactions}
               />
               <StatItem 
                 label="Total Amount"
-                value={formatAmount(summaryData.transactions.totalAmount)}
+                value={formatAmount(transactions.totalAmount)}
               />
               <Divider />
-              {Object.entries(summaryData.transactions.byMode).map(([mode, amount]) => (
+              {Object.entries(transactions.byMode).map(([mode, amount]) => (
                 <StatItem 
                   key={mode}
                   label={mode.replace('_', ' ').toUpperCase()}
@@ -185,17 +202,17 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
             >
               <StatItem 
                 label="Total Invoices"
-                value={summaryData.invoices.totalInvoices}
+                value={invoices.totalInvoices}
               />
               <StatItem 
                 label="Total Amount"
-                value={formatAmount(summaryData.invoices.totalAmount)}
+                value={formatAmount(invoices.totalAmount)}
               />
             </SummaryCard>
           </Grid>
 
           {/* Products Summary Card */}
-          {summaryData.products && (
+          {products && (
             <Grid item xs={12} md={6}>
               <SummaryCard 
                 title="Products Summary" 
@@ -204,13 +221,13 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
               >
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Total Amount: {formatAmount(summaryData.products.totalAmount)}
+                    Total Amount: {formatAmount(products.totalAmount)}
                   </Typography>
                 </Box>
                 
                 <Stack spacing={2}>
                   {/* Milk */}
-                  {summaryData.products.products.milk.quantity > 0 && (
+                  {products.products.milk.quantity > 0 && (
                     <Box>
                       <Typography variant="subtitle2" color="primary">
                         <WaterDropIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -218,18 +235,18 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
                       </Typography>
                       <StatItem 
                         label="Quantity"
-                        value={summaryData.products.products.milk.quantity}
+                        value={products.products.milk.quantity}
                         unit="L"
                       />
                       <StatItem 
                         label="Amount"
-                        value={formatAmount(summaryData.products.products.milk.amount)}
+                        value={formatAmount(products.products.milk.amount)}
                       />
                     </Box>
                   )}
 
                   {/* Eggs */}
-                  {summaryData.products.products.eggs.quantity > 0 && (
+                  {products.products.eggs.quantity > 0 && (
                     <Box>
                       <Typography variant="subtitle2" color="primary">
                         <EggIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -237,30 +254,30 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
                       </Typography>
                       <StatItem 
                         label="Quantity"
-                        value={summaryData.products.products.eggs.quantity}
+                        value={products.products.eggs.quantity}
                         unit="pcs"
                       />
                       <StatItem 
                         label="Amount"
-                        value={formatAmount(summaryData.products.products.eggs.amount)}
+                        value={formatAmount(products.products.eggs.amount)}
                       />
                     </Box>
                   )}
 
                   {/* Other Products */}
-                  {summaryData.products.products.other.quantity > 0 && (
+                  {products.products.other.quantity > 0 && (
                     <Box>
                       <Typography variant="subtitle2" color="primary">
                         Other Products
                       </Typography>
                       <StatItem 
                         label="Quantity"
-                        value={summaryData.products.products.other.quantity}
+                        value={products.products.other.quantity}
                         unit="units"
                       />
                       <StatItem 
                         label="Amount"
-                        value={formatAmount(summaryData.products.products.other.amount)}
+                        value={formatAmount(products.products.other.amount)}
                       />
                     </Box>
                   )}
@@ -270,7 +287,7 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
           )}
 
           {/* Livestock Summary Card */}
-          {summaryData.livestock && Object.keys(summaryData.livestock.items).length > 0 && (
+          {livestock && Object.keys(livestock.items).length > 0 && (
             <Grid item xs={12} md={6}>
               <SummaryCard 
                 title="Livestock Summary" 
@@ -279,12 +296,12 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
               >
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Total Amount: {formatAmount(summaryData.livestock.totalAmount)}
+                    Total Amount: {formatAmount(livestock.totalAmount)}
                   </Typography>
                 </Box>
 
                 <Stack spacing={2}>
-                  {Object.values(summaryData.livestock.items).map((item, index) => (
+                  {Object.values(livestock.items).map((item, index) => (
                     <Box key={index}>
                       <Typography variant="subtitle2" color="error">
                         {item.name}

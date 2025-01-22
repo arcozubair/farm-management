@@ -27,7 +27,11 @@ import {
   Autocomplete,
   IconButton,
   CircularProgress,
-  Tooltip
+  Tooltip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import dayBookService from '../services/dayBookService';
@@ -42,6 +46,15 @@ import useResponsiveness from '../hooks/useResponsive';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import { getInvoicesByDate } from '../services/invoiceService';
+import {
+  ShoppingCart as ShoppingCartIcon,
+  PointOfSale as PointOfSaleIcon,
+  Payments as PaymentsIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon
+} from '@mui/icons-material';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import PrintInvoice from '../components/PrintInvoice';
 
 const determineShift = () => {
   const currentHour = new Date().getHours();
@@ -78,6 +91,12 @@ const DayBook = () => {
   const [searchInputValue, setSearchInputValue] = useState('');
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('collections');
+  const [invoices, setInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [printInvoiceOpen, setPrintInvoiceOpen] = useState(false);
 
   useEffect(() => {
     fetchDayBook();
@@ -239,6 +258,57 @@ const DayBook = () => {
     }
   ];
 
+  const fetchDayData = async (selectedDate) => {
+    setLoading(true);
+    setLoadingInvoices(true);
+    try {
+      // Your existing collection and transaction fetches
+      const [collectionsRes, transactionsRes, invoicesRes] = await Promise.all([
+        dayBookService.getCollectionsByDate(selectedDate),
+        dayBookService.getTransactionsByDate(selectedDate),
+        getInvoicesByDate(selectedDate)
+      ]);
+
+      setEntries(collectionsRes.data || []);
+      setSelectedTransactions(transactionsRes.data || []);
+      setInvoices(invoicesRes.data || []);
+    } catch (error) {
+      console.error('Error fetching day data:', error);
+      enqueueSnackbar('Failed to fetch day data', { variant: 'error' });
+    } finally {
+      setLoading(false);
+      setLoadingInvoices(false);
+    }
+  };
+
+  const handleTabChange = async (event, newValue) => {
+    setIsTabLoading(true);
+    setSelectedTab(newValue);
+    
+    try {
+      if (newValue === 'sales' && selectedDate) {
+        await fetchInvoices(selectedDate);
+      }
+    } catch (error) {
+      console.error('Error loading tab data:', error);
+    } finally {
+      setIsTabLoading(false);
+    }
+  };
+
+  const fetchInvoices = async (date) => {
+    setLoadingInvoices(true);
+    try {
+      const response = await getInvoicesByDate(date);
+      setInvoices(response.data || []);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
   return (
     <Box sx={{ 
       p: isMobile ? 1 : 3,
@@ -359,181 +429,376 @@ const DayBook = () => {
         </Grid>
 
         {/* Summary Cards */}
-        <Grid item xs={12}>
-          <Grid container spacing={isMobile ? 1 : 2}>
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant={isMobile ? "h6" : "h5"}>Collections</Typography>
-                  <Typography>Milk: {entries?.summary.totalMilk || 0} L</Typography>
-                  <Typography>Eggs: {entries?.summary.totalEggs || 0} Pcs</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant={isMobile ? "h6" : "h5"}>Transactions</Typography>
-                  <Typography>Total Payments: ₹{entries?.summary.totalPayments || 0}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Collections Card */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                bgcolor: 'primary.light',
+                color: 'primary.contrastText',
+                height: '100%', // Set full height
+                minHeight: 180, // Set minimum height
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.3s',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Collections</Typography>
+                <ShoppingCartIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}> {/* This will take up remaining space */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Milk:</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{entries?.summary.totalMilk || 0}</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.8 }}>L</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Eggs:</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{entries?.summary.totalEggs || 0}</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.8 }}>Pcs</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Sales Card */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                bgcolor: 'success.light',
+                color: 'success.contrastText',
+                height: '100%',
+                minHeight: 180,
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.3s',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Total Sales</Typography>
+                <PointOfSaleIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}> {/* This will take up remaining space */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Amount:</Typography>
+                  <Typography variant="body2">₹{entries?.summary.totalSales || 0}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Invoices:</Typography>
+                  <Typography variant="body2">{entries?.summary.invoiceCount || 0}</Typography>
+                </Box>
+               
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Transactions Card */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Paper
+              elevation={3}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                bgcolor: 'warning.light',
+                color: 'warning.contrastText',
+                height: '100%', 
+                minHeight: 120, 
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.3s',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Payments</Typography>
+                <PaymentsIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}> {/* This will take up remaining space */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Cash:</Typography>
+                  <Typography variant="body2">₹{entries?.summary.payments?.cash || 0}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Account Transfer:</Typography>
+                  <Typography variant="body2">₹{entries?.summary.payments?.accountTransfer || 0}</Typography>
+                </Box>
+                <Divider sx={{ my: 1, bgcolor: 'warning.contrastText', opacity: 0.2 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle2">Total:</Typography>
+                  <Typography variant="subtitle2">
+                    ₹{entries?.summary.payments?.total || 0}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
 
         {/* Tabs and DataGrid */}
         <Grid item xs={12}>
-          <Paper sx={{ width: '100%' }}>
+          <Paper sx={{ width: '100%', mb: 2, minHeight: 400 }}>
             <Tabs
-              value={activeTab}
-              onChange={(e, newValue) => setActiveTab(newValue)}
-              variant={isMobile ? "fullWidth" : "standard"}
+              value={selectedTab}
+              onChange={handleTabChange}
+              indicatorColor="primary"
+              textColor="primary"
+              variant="fullWidth"
             >
-              <Tab label="Collections" />
-              <Tab label="Transactions" />
+              <Tab label="Collections" value="collections" />
+              <Tab label="Transactions" value="transactions" />
+              <Tab label="Sales" value="sales" />
             </Tabs>
 
-            {activeTab === 0 && (
-              <Box sx={{ 
-                height: isMobile ? 400 : 500, 
-                width: '100%',
-                overflow: 'auto'
-              }}>
-                <DataGrid
-                  rows={entries?.collections.map((entry, index) => ({
-                    id: index,
-                    time: new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    type: entry.type,
-                    shift: entry.shift,
-                    quantity: `${entry.quantity} ${entry.type === 'milk' ? 'L' : 'Pcs'}`
-                  })) || []}
-                  columns={[
-                    { 
-                      field: 'time', 
-                      headerName: 'Time', 
-                      flex: 0.8,
-                      minWidth: 80,
-                      sortable: false
-                    },
-                    { 
-                      field: 'type', 
-                      headerName: 'Type', 
-                      flex: 0.8,
-                      minWidth: 70,
-                      sortable: false
-                    },
-                    { 
-                      field: 'shift', 
-                      headerName: 'Shift', 
-                      flex: 1,
-                      minWidth: 80,
-                      hide: isMobile,
-                      sortable: false
-                    },
-                    { 
-                      field: 'quantity', 
-                      headerName: 'Qty', 
-                      flex: 1,
-                      minWidth: 70,
-                      sortable: false
-                    }
-                  ]}
-                  pageSize={isMobile ? 5 : 10}
-                  rowsPerPageOptions={[5, 10, 25]}
-                  disableSelectionOnClick
-                  sx={{
-                    '& .MuiDataGrid-cell': {
-                      fontSize: isMobile ? '0.875rem' : '1rem',
-                      px: isMobile ? 1 : 2
-                    },
-                    '& .MuiDataGrid-columnHeader': {
-                      fontSize: isMobile ? '0.875rem' : '1rem',
-                      px: isMobile ? 1 : 2
-                    }
-                  }}
-                />
+            {isTabLoading ? (
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  height: 300 // Fixed height for loading state
+                }}
+              >
+                <CircularProgress />
               </Box>
-            )}
+            ) : (
+              <>
+                {selectedTab === 'collections' && (
+                  <Box sx={{ 
+                    height: isMobile ? 400 : 500, 
+                    width: '100%',
+                    overflow: 'auto'
+                  }}>
+                    <DataGrid
+                      rows={entries?.collections.map((entry, index) => ({
+                        id: index,
+                        time: new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        type: entry.type,
+                        shift: entry.shift,
+                        quantity: `${entry.quantity} ${entry.type === 'milk' ? 'L' : 'Pcs'}`
+                      })) || []}
+                      columns={[
+                        { 
+                          field: 'time', 
+                          headerName: 'Time', 
+                          flex: 0.8,
+                          minWidth: 80,
+                          sortable: false
+                        },
+                        { 
+                          field: 'type', 
+                          headerName: 'Type', 
+                          flex: 0.8,
+                          minWidth: 70,
+                          sortable: false
+                        },
+                        { 
+                          field: 'shift', 
+                          headerName: 'Shift', 
+                          flex: 1,
+                          minWidth: 80,
+                          hide: isMobile,
+                          sortable: false
+                        },
+                        { 
+                          field: 'quantity', 
+                          headerName: 'Qty', 
+                          flex: 1,
+                          minWidth: 70,
+                          sortable: false
+                        }
+                      ]}
+                      pageSize={isMobile ? 5 : 10}
+                      rowsPerPageOptions={[5, 10, 25]}
+                      disableSelectionOnClick
+                      sx={{
+                        '& .MuiDataGrid-cell': {
+                          fontSize: isMobile ? '0.875rem' : '1rem',
+                          px: isMobile ? 1 : 2
+                        },
+                        '& .MuiDataGrid-columnHeader': {
+                          fontSize: isMobile ? '0.875rem' : '1rem',
+                          px: isMobile ? 1 : 2
+                        }
+                      }}
+                    />
+                  </Box>
+                )}
 
-            {activeTab === 1 && (
-              <Box sx={{ 
-                height: isMobile ? 400 : 500, 
-                width: '100%',
-                overflow: 'auto'
-              }}>
-                <DataGrid
-                  rows={entries?.transactions.map((transaction, index) => ({
-                    id: index,
-                    time: new Date(transaction.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    customer: transaction.customerId?.name || 'N/A',
-                    amountPaid: `₹${transaction.amountPaid.toFixed(2)}`,
-                    paymentMode: transaction.paymentMode,
-                    actions: transaction
-                  })) || []}
-                  columns={[
-                    { 
-                      field: 'time', 
-                      headerName: 'Time', 
-                      flex: 0.8,
-                      minWidth: 80,
-                      sortable: false
-                    },
-                    { 
-                      field: 'customer', 
-                      headerName: 'Customer', 
-                      flex: 1.2,
-                      minWidth: 100,
-                      sortable: false
-                    },
-                    { 
-                      field: 'amountPaid', 
-                      headerName: 'Amount', 
-                      flex: 1,
-                      minWidth: 90,
-                      sortable: false
-                    },
-                    { 
-                      field: 'paymentMode', 
-                      headerName: 'Mode', 
-                      flex: 1,
-                      minWidth: 100,
-                      hide: isMobile,
-                      sortable: false
-                    },
-                    {
-                      field: 'actions',
-                      headerName: 'Action',
-                      flex: 0.5,
-                      minWidth: isMobile ? 60 : 50,
-                      sortable: false,
-                      renderCell: (params) => (
-                        <IconButton 
-                          onClick={() => handlePrintReceipt(params.value)}
-                          size={isMobile ? "small" : "medium"}
-                        >
-                          <PrintIcon />
-                        </IconButton>
-                      )
-                    }
-                  ]}
-                  pageSize={isMobile ? 5 : 10}
-                  rowsPerPageOptions={[5, 10, 25]}
-                  disableSelectionOnClick
-                  sx={{
-                    '& .MuiDataGrid-cell': {
-                      fontSize: isMobile ? '0.875rem' : '1rem',
-                      px: isMobile ? 1 : 2
-                    },
-                    '& .MuiDataGrid-columnHeader': {
-                      fontSize: isMobile ? '0.875rem' : '1rem',
-                      px: isMobile ? 1 : 2
-                    },
-                    '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: '#f8f9fa'
-                    }
-                  }}
-                />
-              </Box>
+                {selectedTab === 'transactions' && (
+                  <Box sx={{ 
+                    height: isMobile ? 400 : 500, 
+                    width: '100%',
+                    overflow: 'auto'
+                  }}>
+                    <DataGrid
+                      rows={entries?.transactions.map((transaction, index) => ({
+                        id: index,
+                        time: new Date(transaction.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        customer: transaction.customerId?.name || 'N/A',
+                        amountPaid: `₹${transaction.amountPaid.toFixed(2)}`,
+                        paymentMode: transaction.paymentMode,
+                        actions: transaction
+                      })) || []}
+                      columns={[
+                        { 
+                          field: 'time', 
+                          headerName: 'Time', 
+                          flex: 0.8,
+                          minWidth: 80,
+                          sortable: false
+                        },
+                        { 
+                          field: 'customer', 
+                          headerName: 'Customer', 
+                          flex: 1.2,
+                          minWidth: 100,
+                          sortable: false
+                        },
+                        { 
+                          field: 'amountPaid', 
+                          headerName: 'Amount', 
+                          flex: 1,
+                          minWidth: 90,
+                          sortable: false
+                        },
+                        { 
+                          field: 'paymentMode', 
+                          headerName: 'Mode', 
+                          flex: 1,
+                          minWidth: 100,
+                          hide: isMobile,
+                          sortable: false
+                        },
+                        {
+                          field: 'actions',
+                          headerName: 'Action',
+                          flex: 0.5,
+                          minWidth: isMobile ? 60 : 50,
+                          sortable: false,
+                          renderCell: (params) => (
+                            <IconButton 
+                              onClick={() => handlePrintReceipt(params.value)}
+                              size={isMobile ? "small" : "medium"}
+                            >
+                              <PrintIcon />
+                            </IconButton>
+                          )
+                        }
+                      ]}
+                      pageSize={isMobile ? 5 : 10}
+                      rowsPerPageOptions={[5, 10, 25]}
+                      disableSelectionOnClick
+                      sx={{
+                        '& .MuiDataGrid-cell': {
+                          fontSize: isMobile ? '0.875rem' : '1rem',
+                          px: isMobile ? 1 : 2
+                        },
+                        '& .MuiDataGrid-columnHeader': {
+                          fontSize: isMobile ? '0.875rem' : '1rem',
+                          px: isMobile ? 1 : 2
+                        },
+                        '& .MuiDataGrid-columnHeaders': {
+                          backgroundColor: '#f8f9fa'
+                        }
+                      }}
+                    />
+                  </Box>
+                )}
+
+                {selectedTab === 'sales' && (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Invoice No.</TableCell>
+                          <TableCell>Customer</TableCell>
+                          <TableCell>Items</TableCell>
+                          <TableCell align="right">Total Amount</TableCell>
+                          <TableCell align="right">Time</TableCell>
+                          <TableCell align="center">Action</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {invoices.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                              <Box sx={{ textAlign: 'center' }}>
+                                <ReceiptLongIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                                <Typography color="textSecondary">
+                                  No sales found for selected date
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          <>
+                            {invoices.map((invoice) => (
+                              <TableRow key={invoice._id}>
+                                <TableCell>{invoice.invoiceNumber}</TableCell>
+                                <TableCell>{invoice.customer?.name}</TableCell>
+                                <TableCell>
+                                  {invoice.items.map(item => (
+                                    <Typography variant="caption" display="block" key={item._id}>
+                                      {item.name} ({item.quantity} {item.unit})
+                                    </Typography>
+                                  ))}
+                                </TableCell>
+                                <TableCell align="right">₹{invoice.grandTotal}</TableCell>
+                                <TableCell align="right">
+                                  {new Date(invoice.createdAt).toLocaleTimeString()}
+                                </TableCell>
+                                <TableCell align="center">
+                                  <IconButton 
+                                    onClick={() => {
+                                      setSelectedInvoice(invoice);
+                                      setPrintInvoiceOpen(true);
+                                    }}
+                                    size="small"
+                                    color="primary"
+                                  >
+                                    <PrintIcon />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow>
+                              <TableCell colSpan={3} align="right">
+                                <strong>Total Sales:</strong>
+                              </TableCell>
+                              <TableCell align="right">
+                                <strong>
+                                  ₹{invoices.reduce((sum, inv) => sum + inv.grandTotal, 0)}
+                                </strong>
+                              </TableCell>
+                              <TableCell />
+                              <TableCell />
+                            </TableRow>
+                          </>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </>
             )}
           </Paper>
         </Grid>
@@ -745,6 +1010,15 @@ const DayBook = () => {
       <AddSaleDialog
         open={saleDialogOpen}
         onClose={() => setSaleDialogOpen(false)}
+      />
+
+      <PrintInvoice 
+        open={printInvoiceOpen}
+        onClose={() => {
+          setPrintInvoiceOpen(false);
+          setSelectedInvoice(null);
+        }}
+        invoiceData={selectedInvoice}
       />
     </Box>
   );

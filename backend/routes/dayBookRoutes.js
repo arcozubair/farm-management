@@ -7,7 +7,7 @@ const { protect } = require('../middleware/auth');
 router.use(protect);
 
 // Get entries for a specific date
-router.get('/', dayBookController.getEntries);
+router.get('/', dayBookController.getDayBook);
 
 // Add new collection entry (milk/eggs)
 router.post('/collection', dayBookController.addCollection);
