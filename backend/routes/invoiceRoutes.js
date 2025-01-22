@@ -7,7 +7,8 @@ const {
     getInvoiceById,
     updateInvoicePayment,
     deleteInvoice,
-    getInvoicesByCustomer
+    getInvoicesByCustomer,
+    getInvoicesByDate
 } = require('../controllers/invoiceController');
 
 // All routes are protected
@@ -24,5 +25,7 @@ router.route('/:id')
     .delete(authorize('admin'), deleteInvoice);
 
 router.get('/customer/:customerId', getInvoicesByCustomer);
+
+router.get('/by-date/:date', getInvoicesByDate);
 
 module.exports = router; 

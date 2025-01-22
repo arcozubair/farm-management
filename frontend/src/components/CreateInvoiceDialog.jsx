@@ -73,7 +73,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     rate: 0,
     total: 0,
     type: '',
-    remainingStock: 0
+    remainingStock: 0,
+    unit: ''
   });
 
   // Create ref for the Autocomplete input
@@ -103,14 +104,16 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
             name: p.type,
             price: p.price || 0,
             type: 'product',
-            remainingStock: p.currentStock
+            remainingStock: p.currentStock,
+            unit: p.type.toLowerCase().includes('milk') ? 'L' : 'pcs'
           })),
           ...livestockArray.map(l => ({ 
             ...l,
             name: `${l.category} - ${l.type}`,
             price: l.price || 0,
             type: 'livestock',
-            remainingStock: l.quantity
+            remainingStock: l.quantity,
+            unit: l.weight > 0 ? 'kg' : 'pcs'
           }))
         ];
         
@@ -160,34 +163,67 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     }
   }, [open]);
 
+  const updateItemCalculations = (field, value) => {
+    setCurrentItem(prev => {
+      const updates = { ...prev, [field]: value };
+      
+      // Calculate total based on weight first, then quantity
+      if (field === 'quantity' || field === 'weight' || field === 'rate') {
+        if (updates.weight > 0) {
+          // When weight exists, use weight-based calculation
+          updates.total = (updates.weight * updates.rate).toFixed(2);
+        } else if (updates.quantity > 0) {
+          // When no weight but quantity exists, use quantity-based calculation
+          updates.total = (updates.quantity * updates.rate).toFixed(2);
+        } else {
+          // If neither exists, set total to 0
+          updates.total = 0;
+        }
+      }
+      
+      return updates;
+    });
+  };
+
   const validateItemInput = () => {
     if (!selectedStock) {
       setError('Please select an item');
       return false;
     }
-    if (currentItem.quantity <= 0) {
-      setError('Quantity must be greater than 0');
+    
+    // Check if either weight or quantity is provided
+    if (!currentItem.weight && !currentItem.quantity) {
+      setError('Please provide either weight or quantity');
       return false;
     }
-    if (currentItem.quantity > currentItem.remainingStock) {
-      setError('Quantity cannot exceed available stock');
-      return false;
-    }
+    
     if (currentItem.weight < 0) {
       setError('Weight cannot be negative');
       return false;
     }
+    
+    if (currentItem.quantity < 0) {
+      setError('Quantity cannot be negative');
+      return false;
+    }
+    
+    if (!currentItem.weight && currentItem.quantity > currentItem.remainingStock) {
+      setError('Quantity cannot exceed available stock');
+      return false;
+    }
+    
     if (currentItem.rate <= 0) {
       setError('Rate must be greater than 0');
       return false;
     }
+    
     return true;
   };
 
   const handleItemSelect = (event, value) => {
     setError('');
     if (value) {
-      console.log('Selected stock item:', value);
+      console.log('Selected stock item with unit:', value.unit);
       setSelectedStock(value);
       setCurrentItem({
         ...currentItem,
@@ -197,35 +233,14 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         rate: value.price || 0,
         type: value.type,
         remainingStock: value.remainingStock,
+        unit: value.unit,
         total: (currentItem.quantity * (value.price || 0))
       });
     }
   };
 
-  const updateItemCalculations = (field, value) => {
-    setCurrentItem(prev => {
-      const updates = { ...prev, [field]: value };
-      
-      // Calculate total based on either quantity or weight
-      if (field === 'quantity' || field === 'weight' || field === 'rate') {
-        // If weight is greater than 0, use weight calculation
-        if (updates.weight > 0) {
-          updates.total = (updates.weight * updates.rate).toFixed(2);
-          // Reset quantity when using weight
-          updates.quantity = 1;
-        } else {
-          // Otherwise use quantity calculation
-          updates.total = (updates.quantity * updates.rate).toFixed(2);
-        }
-      }
-      
-      return updates;
-    });
-  };
-
   const handleAddItem = () => {
-    if (!selectedStock) {
-      setError('Please select a product');
+    if (!validateItemInput()) {
       return;
     }
 
@@ -238,9 +253,11 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       rate: currentItem.rate,
       total: currentItem.total,
       type: selectedStock.type,
-      remainingStock: selectedStock.remainingStock
+      remainingStock: selectedStock.remainingStock,
+      unit: currentItem.weight > 0 ? 'kg' : selectedStock.unit
     };
 
+    console.log('Adding item with unit:', newItem.unit);
     setItems(prevItems => [...prevItems, newItem]);
     
     // Reset current item and selection
@@ -253,7 +270,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       rate: 0,
       total: 0,
       type: '',
-      remainingStock: 0
+      remainingStock: 0,
+      unit: ''
     });
   };
 
@@ -270,17 +288,22 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     setError('');
 
     try {
+      const invoiceItems = items.map(item => ({
+        itemId: item.productId,
+        itemType: item.type === 'product' ? 'Product' : 'Livestock',
+        name: item.name,
+        quantity: Number(item.quantity),
+        price: Number(item.rate),
+        total: Number(item.total),
+        weight: Number(item.weight || 0),
+        unit: item.weight > 0 ? 'kg' : (item.type.toLowerCase().includes('milk') ? 'L' : 'pcs')
+      }));
+
+      console.log('Invoice items before sending:', invoiceItems);
+
       const invoiceData = {
         customer: customer._id,
-        items: items.map(item => ({
-          itemId: item.productId,
-          itemType: item.type.toUpperCase(),
-          name: item.name,
-          quantity: Number(item.quantity),
-          price: Number(item.rate),
-          total: Number(item.total),
-          weight: Number(item.weight)
-        })),
+        items: invoiceItems,
         grandTotal: Number(calculateGrandTotal()),
         paidAmount: Number(calculateGrandTotal()),
         remainingBalance: 0,
@@ -435,8 +458,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                     max: currentItem.remainingStock 
                   }}
                   size={isMobile ? "small" : "medium"}
-                  disabled={currentItem.weight > 0} // Disable if weight is being used
-                  helperText={currentItem.weight > 0 ? "Using weight" : ""}
+                  helperText="Used if no weight provided"
                 />
               </Grid>
               <Grid item xs={6} md={2}>
@@ -451,9 +473,10 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                     step: 0.1 
                   }}
                   size={isMobile ? "small" : "medium"}
-                  helperText={currentItem.weight > 0 ? "Using weight for total" : "Optional"}
+                  helperText={currentItem.weight > 0 ? "Total weight (prioritized)" : "Optional"}
                 />
               </Grid>
+           
               <Grid item xs={6} md={2}>
                 <TextField
                   fullWidth

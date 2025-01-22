@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const CustomerTransaction = require('../models/CustomerTransaction');
 const DayBook = require('../models/DayBook');
 const Product = require('../models/Product');
+const Invoice = require('../models/Invoice');
 
 exports.addTransaction = async (req, res) => {
   try {
@@ -241,5 +242,74 @@ exports.getEntries = async (req, res) => {
     res.json({ success: true, data: dayBook });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+exports.getDayBook = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const formattedDate = new Date(date);
+    formattedDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(formattedDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Get daybook data
+    const dayBook = await DayBook.findOne({ date: formattedDate });
+
+    // Calculate payments by mode
+    const payments = {
+      cash: 0,
+      accountTransfer: 0
+    };
+
+    // Sum up payments by mode
+    if (dayBook?.transactions) {
+      dayBook.transactions.forEach(transaction => {
+        if (transaction.paymentMode === 'cash') {
+          payments.cash += Number(transaction.amountPaid) || 0;
+        } else if (transaction.paymentMode === 'account') {
+          payments.accountTransfer += Number(transaction.amountPaid) || 0;
+        }
+      });
+    }
+
+    // Get total sales amount from invoices for the date
+    const invoices = await Invoice.find({
+      createdAt: {
+        $gte: formattedDate,
+        $lte: endDate
+      }
+    });
+
+    const totalSales = invoices.reduce((sum, invoice) => sum + (invoice.grandTotal || 0), 0);
+
+    // Prepare response with existing and new data
+    const response = {
+      success: true,
+      data: {
+        collections: dayBook?.collections || [],
+        transactions: dayBook?.transactions || [],
+        summary: {
+          ...dayBook?.summary || {},
+          totalSales,
+          invoiceCount: invoices.length,
+          payments: {
+            cash: payments.cash,
+            accountTransfer: payments.accountTransfer,
+            total: payments.cash + payments.accountTransfer
+          }
+        },
+        date: formattedDate
+      }
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error in getDayBook:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 }; 

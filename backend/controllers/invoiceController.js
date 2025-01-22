@@ -59,16 +59,16 @@ exports.createInvoice = async (req, res) => {
         // Process each item to include name and unit
         const processedItems = await Promise.all(items.map(async (item) => {
             let itemDoc;
-            if (item.itemType === 'PRODUCT') {
+            if (item.itemType === 'Product') {
                 itemDoc = await Product.findById(item.itemId);
-            } else if (item.itemType === 'LIVESTOCK') {
+            } else if (item.itemType === 'Livestock') {
                 itemDoc = await Livestock.findById(item.itemId);
             }
 
             return {
                 ...item,
                 name: item.name || itemDoc?.name || 'Unknown Item',
-                unit: itemDoc?.unit || 'units'
+                
             };
         }));
 
@@ -109,7 +109,7 @@ exports.createInvoice = async (req, res) => {
         console.log('Starting stock updates...');
         
         for (const item of items) {
-            const Model = item.itemType === 'LIVESTOCK' ? Livestock : Product;
+            const Model = item.itemType === 'Livestock' ? Livestock : Product;
             const itemId = item.itemId;
 
             console.log(`Processing ${item.itemType} item:`, {
@@ -125,7 +125,7 @@ exports.createInvoice = async (req, res) => {
             }
 
             // Get the correct stock field based on the model
-            const currentStock = item.itemType === 'LIVESTOCK' ? 
+            const currentStock = item.itemType === 'Livestock' ? 
                 existingItem.quantity :      // For Livestock model
                 existingItem.currentStock;   // For Product model
 
@@ -144,7 +144,7 @@ exports.createInvoice = async (req, res) => {
             }
 
             // Update the correct field based on model type
-            const updateField = item.itemType === 'LIVESTOCK' ? 
+            const updateField = item.itemType === 'Livestock' ? 
                 { quantity: currentStock - item.quantity } :    // For Livestock
                 { currentStock: currentStock - item.quantity }; // For Product
 
@@ -165,7 +165,7 @@ exports.createInvoice = async (req, res) => {
                 throw new Error(`Failed to update stock for item ${itemId}`);
             }
 
-            const newStock = item.itemType === 'LIVESTOCK' ? 
+            const newStock = item.itemType === 'Livestock' ? 
                 updatedItem.quantity :
                 updatedItem.currentStock;
 
@@ -459,4 +459,29 @@ exports.getInvoicesByCustomer = async (req, res) => {
             message: error.message
         });
     }
+};
+
+exports.getInvoicesByDate = async (req, res) => {
+  try {
+    const date = new Date(req.params.date);
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+    const invoices = await Invoice.find({
+      createdAt: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    }).populate('customer', 'name');
+
+    res.status(200).json({
+      success: true,
+      data: invoices
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
 }; 
