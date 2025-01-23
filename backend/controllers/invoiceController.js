@@ -472,7 +472,7 @@ exports.getInvoicesByDate = async (req, res) => {
         $gte: startOfDay,
         $lte: endOfDay
       }
-    }).populate('customer', 'name');
+    }).populate('customer', 'name contactNumber');
 
     res.status(200).json({
       success: true,
