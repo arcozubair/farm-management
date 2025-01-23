@@ -301,6 +301,7 @@ const DayBook = () => {
     try {
       const response = await getInvoicesByDate(date);
       setInvoices(response.data || []);
+      console.log('Invoices111:', response.data);
     } catch (error) {
       console.error('Error fetching invoices:', error);
       enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
