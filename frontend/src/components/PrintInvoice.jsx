@@ -193,35 +193,48 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
                 margin: 0
               }
             }}>
+             <Typography variant={isMobile ? "h5" : "h4"} sx={{ 
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    letterSpacing: '0.1em',
+                   
+                    pb: 1,
+                    mb: 2
+                  }}>
+                     INVOICE
+                  </Typography>
               {/* Header */}
               <Box sx={{ 
                 display: 'flex', 
                 justifyContent: 'space-between',
                 flexDirection: isMobile ? 'column' : 'row',
                 gap: isMobile ? 2 : 0,
+                border: '1px solid #000',
+                p: 2,
                 mb: 2
               }}>
                 {/* Left side - Company Details */}
                 <Box sx={{ width: isMobile ? '100%' : '60%' }}>
                   <Typography 
-                    variant={isMobile ? "h6" : "h5"} 
+                    variant="h6" 
                     sx={{ 
                       textTransform: 'uppercase', 
                       fontWeight: 'bold',
                       letterSpacing: '0.05em',
-                      fontSize: isMobile ? '1rem' : isTablet ? '1.25rem' : '1.5rem'
+                      fontSize: '1.3rem',
+                      mb: 2
                     }}
                   >
                     {companyDetails?.companyName}
                   </Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
                     {formatAddress(companyDetails?.address)}
                   </Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
                     Phone: {companyDetails?.contactNumbers?.map(phone => phone).join(', ')}
                   </Typography>
                   {companyDetails?.gstNumber && (
-                    <Typography variant="body1">
+                    <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
                       GSTIN: {companyDetails.gstNumber}
                     </Typography>
                   )}
@@ -232,30 +245,22 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
                   width: isMobile ? '100%' : '40%',
                   mt: isMobile ? 2 : 0 
                 }}>
-                  <Typography variant={isMobile ? "h5" : "h4"} sx={{ 
-                    fontWeight: 'bold',
-                    letterSpacing: '0.1em',
-                    borderBottom: '3px double #000',
-                    pb: 1,
-                    mb: 2
-                  }}>
-                    TAX INVOICE
-                  </Typography>
+                 
                   <Typography sx={{ fontWeight: 'bold' }}>
                     Invoice No: {invoiceData.invoiceNumber}
                   </Typography>
-                  <Typography sx={{ fontWeight: 'bold' }}>
+                  <Typography sx={{ fontWeight: 'bold', mb: 1}}>
                     Date: {formatDate(invoiceData.createdAt)}
                   </Typography>
+                    <Typography sx={{ fontWeight: 'bold', textDecoration: 'underline'  }}>Party Details:</Typography>
+                <Typography sx={{ fontWeight: 'bold' }}>Name: {invoiceData.customer?.name}</Typography>
+                <Typography sx={{ fontWeight: 'bold' }}>Contact: {invoiceData.customer?.contactNumber || 'N/A'}</Typography>
                 </Box>
+                  {/* Party Details */}
+         
               </Box>
 
-              {/* Party Details */}
-              <Box sx={{ mb: 3, border: '1px solid #000', p: 2 }}>
-                <Typography sx={{ fontWeight: 'bold', mb: 1 }}>Party Details:</Typography>
-                <Typography>Name: {invoiceData.customer?.name}</Typography>
-                <Typography>Contact: {invoiceData.customer?.contactNumber || 'N/A'}</Typography>
-              </Box>
+            
 
               {/* Items Table */}
               <Box sx={{ 
@@ -266,7 +271,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
                   borderCollapse: 'collapse',
                   minWidth: isMobile ? '600px' : 'auto',
                   '& th, & td': { 
-                    border: '1px solid #000',
+                  
                     fontSize: isMobile ? '0.8rem' : '0.9rem',
                     padding: isMobile ? '4px' : '8px',
                     fontFamily: 'Calibri',
@@ -287,14 +292,14 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
                     {invoiceData.items.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell>{item.name.charAt(0).toUpperCase() + item.name.slice(1)}</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>{item.name.charAt(0).toUpperCase() + item.name.slice(1)}</TableCell>
                         <TableCell align="right">
                           {item.quantity} {item.unit === "kg" ? "" :item.unit}
                         </TableCell>
                         <TableCell align="right">
                           {item?.weight || '-'} {item?.weight ? item.unit : ''}
                         </TableCell>
-                        <TableCell align="right">₹{item.price?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>₹{item.price?.toFixed(2) || '0.00'}</TableCell>
                         <TableCell align="right">₹{((item.total || 0)).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
@@ -324,10 +329,32 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
                   mb: 1,
                   flexDirection: isMobile ? 'column' : 'row'
                 }}>
+                <Box sx={{ 
+  mt: 1,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end'  // Aligns items to bottom of container
+}}>
+  {/* Declaration */}
+  <Box sx={{ maxWidth: '80%' }}>
+    <Typography sx={{ 
+      fontStyle: 'italic', 
+      fontSize: '0.9rem'
+    }}>
+      {declaration}
+    </Typography>
+  </Box>
+
+  {/* Authorized Signatory */}
+  <Box sx={{ textAlign: 'center' }}>
+   
+  </Box>
+</Box>
                   <Box sx={{ 
                     width: isMobile ? '100%' : '50%', 
                     pr: isMobile ? 0 : 2 
                   }}>
+                  
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>Sub Total:</Typography>
                       <Typography sx={{ fontFamily: 'Calibri' }}>₹{(invoiceData.grandTotal - (invoiceData.gstAmount || 0)).toFixed(2)}</Typography>
@@ -374,27 +401,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
           
 
 {/* Declaration and Authorized Signatory on same line */}
-<Box sx={{ 
-  mt: 4,
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-end'  // Aligns items to bottom of container
-}}>
-  {/* Declaration */}
-  <Box sx={{ maxWidth: '60%' }}>
-    <Typography sx={{ 
-      fontStyle: 'italic', 
-      fontSize: '0.9rem'
-    }}>
-      {declaration}
-    </Typography>
-  </Box>
 
-  {/* Authorized Signatory */}
-  <Box sx={{ textAlign: 'center' }}>
-   
-  </Box>
-</Box>
 
 {/* Signatures Section */}
 <Box sx={{ 
@@ -434,13 +441,13 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
         <Box sx={{  mt: 1, pt: 1, }}>
       <Typography>Customer's Seal & Signature</Typography>
     </Box>
-      <Box sx={{  mt: 1, pt: 1, flex: 1 }}>
+      <Box sx={{  mt: 1, pt: 1}}>
         <Typography>Prepared by</Typography>
       </Box>
-      <Box sx={{  mt: 1, pt: 1, flex: 1 }}>
+      <Box sx={{  mt: 1, pt: 1}}>
         <Typography>Verified by</Typography>
       </Box>
-      <Box sx={{  mt: 1, pt: 1, flex: 1 }}>
+      <Box sx={{  mt: 1, pt: 1}}>
       <Typography >
         Authorized Signatory
       </Typography>

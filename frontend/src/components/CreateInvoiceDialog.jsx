@@ -296,7 +296,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         price: Number(item.rate),
         total: Number(item.total),
         weight: Number(item.weight || 0),
-        unit: item.weight > 0 ? 'kg' : (item.type.toLowerCase().includes('milk') ? 'L' : 'pcs')
+        unit: item.weight > 0 ? 'kg' : (item.name.toLowerCase().includes('milk') ? 'L' : 'pcs')
       }));
 
       console.log('Invoice items before sending:', invoiceItems);
