@@ -204,40 +204,42 @@ exports.getCustomerLedger = async (req, res) => {
       }
     }).select('invoiceNumber grandTotal remainingBalance createdAt');
 
-    // Format transactions
+    // Format transactions - keep exact timestamp
     const formattedTransactions = transactions.flatMap(trans => 
       (trans.transactions || []).map(t => ({
         date: t.date,
+        exactTimestamp: new Date(t.date).getTime(),
         type: "Transaction",
         description: `Transaction - Receipt #${t.transactionNumber}`,
         amount: -t.amount,
         transactionMode: t.modeOfPayment,
-        createdAt: trans.createdAt,
         balanceAfterEntry: trans.currentBalance
       }))
     );
 
-    // Format invoices
+    // Format invoices - keep exact timestamp
     const formattedInvoices = invoices.map(invoice => ({
       date: invoice.createdAt,
+      exactTimestamp: new Date(invoice.createdAt).getTime(),
       type: "Invoice",
       description: `Invoice #${invoice.invoiceNumber}`,
       amount: invoice.grandTotal,
       remainingBalance: invoice.remainingBalance,
       transactionMode: null,
-      createdAt: invoice.createdAt,
       balanceAfterEntry: invoice.remainingBalance
     }));
 
-    // Combine and sort all entries
+    // Combine and sort all entries by exact timestamp
     const ledgerDetails = [...formattedTransactions, ...formattedInvoices]
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      .sort((a, b) => a.exactTimestamp - b.exactTimestamp);
 
     // Calculate running balance
     let runningBalance = customer.openingBalance;
     ledgerDetails.forEach(entry => {
       runningBalance += entry.amount;
       entry.balanceAfterEntry = runningBalance;
+      // Remove exactTimestamp from final output
+      delete entry.exactTimestamp;
     });
 
     res.json({

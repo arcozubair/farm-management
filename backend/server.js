@@ -8,6 +8,7 @@ const productRoutes = require('./routes/productRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const { initializeProducts } = require('./controllers/productController');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const path = require('path');
 const companySettingsRoutes = require('./routes/companySettingsRoutes');
 // Initialize express
 const app = express();
@@ -70,7 +71,8 @@ app.use((err, req, res, next) => {
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
-
+// Add this near your other middleware configurations
+app.use('/invoices', express.static(path.join(__dirname, 'public/invoices')));
 // Handle unhandled routes
 app.use('*', (req, res) => {
   res.status(404).json({

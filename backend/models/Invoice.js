@@ -36,6 +36,17 @@ const invoiceSchema = new mongoose.Schema({
     remainingBalance: {
         type: Number,
         required: true
+    },
+    pdfPath: {
+        type: String,
+        required: false
+    },
+    whatsappSent: {
+        type: Boolean,
+        default: false
+    },
+    whatsappError: {
+        type: String
     }
 }, {
     timestamps: true
