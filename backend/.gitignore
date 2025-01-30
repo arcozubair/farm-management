@@ -68,3 +68,7 @@ yarn-error.log*
 
 # Ignore uploads directory
 uploads/ 
+
+# Google credentials
+/config/google-credentials.json
+

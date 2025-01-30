@@ -6,7 +6,6 @@ const { v4: uuidv4 } = require('uuid');
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
 const auth = new google.auth.GoogleAuth({
-    keyFile: path.join(__dirname, '../config/google-credentials.json'),
     scopes: SCOPES,
 });
 
