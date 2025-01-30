@@ -4,9 +4,12 @@ const Livestock = require('../models/Livestock');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const CompanySettings = require('../models/CompanySettings');
+<<<<<<< HEAD
 const { generateInvoicePDF } = require('../utils/pdfGenerator');
 const { uploadToDrive } = require('../utils/googleDriveUploader');
 const { sendPdfToWhatsapp } = require('../utils/whatsappSender');
+=======
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
 exports.createInvoice = async (req, res) => {
     const session = await mongoose.startSession();
@@ -18,6 +21,7 @@ exports.createInvoice = async (req, res) => {
         console.log('Starting invoice creation:', {
             customerId: customer,
             itemsCount: items.length,
+<<<<<<< HEAD
             grandTotal
         });
 
@@ -83,6 +87,148 @@ exports.createInvoice = async (req, res) => {
                 { quantity: currentStock - item.quantity } : 
                 { currentStock: currentStock - item.quantity };
 
+=======
+            grandTotal,
+            items
+        });
+
+        // Get customer's current balance first
+        const customerDoc = await Customer.findById(customer).session(session);
+        if (!customerDoc) {
+            throw new Error('Customer not found');
+        }
+
+        const previousBalance = customerDoc.currentBalance;
+        const newBalance = previousBalance + grandTotal;
+
+        console.log('Balance calculation:', {
+            previousBalance,
+            invoiceAmount: grandTotal,
+            newBalance
+        });
+
+        // Get company settings and generate invoice number
+        const settings = await CompanySettings.findOne().session(session);
+        if (!settings) {
+            throw new Error('Company settings not found');
+        }
+
+        // Generate invoice number
+        const nextInvoiceNumber = settings.numberSequences.lastInvoiceNumber + 1;
+        const prefix = settings.prefixes.invoicePrefix;
+        const year = new Date().getFullYear().toString().slice(-2);
+        const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+        
+        const invoiceNumber = `${prefix}-${year}/${month}-${nextInvoiceNumber.toString().padStart(5, '0')}`;
+        console.log('Generated invoice number:', invoiceNumber);
+
+        // Update company settings with new invoice number
+        await CompanySettings.findOneAndUpdate(
+            {},
+            { 'numberSequences.lastInvoiceNumber': nextInvoiceNumber },
+            { session }
+        );
+
+        // Process each item to include name and unit
+        const processedItems = await Promise.all(items.map(async (item) => {
+            let itemDoc;
+            if (item.itemType === 'Product') {
+                itemDoc = await Product.findById(item.itemId);
+            } else if (item.itemType === 'Livestock') {
+                itemDoc = await Livestock.findById(item.itemId);
+            }
+
+            return {
+                ...item,
+                name: item.name || itemDoc?.name || 'Unknown Item',
+                
+            };
+        }));
+
+        // Create invoice
+        const invoice = new Invoice({
+            customer,
+            invoiceNumber,
+            items: processedItems,
+            grandTotal,
+            remainingBalance: newBalance,    // Set remaining balance to new total balance
+            createdBy: req.user._id
+        });
+
+        await invoice.save({ session });
+        console.log('Invoice created:', invoice._id);
+
+        // Update customer balance and add invoice reference
+        await Customer.findByIdAndUpdate(
+            customer,
+            { 
+                $push: { 
+                    invoices: {
+                        invoiceId: invoice._id,
+                        date: new Date()
+                    }
+                },
+                currentBalance: newBalance  // Set the new total balance
+            },
+            { session, new: true }
+        );
+
+        console.log('Customer balance updated:', {
+            customerId: customer,
+            newBalance
+        });
+
+        // Update stock based on item type
+        console.log('Starting stock updates...');
+        
+        for (const item of items) {
+            const Model = item.itemType === 'Livestock' ? Livestock : Product;
+            const itemId = item.itemId;
+
+            console.log(`Processing ${item.itemType} item:`, {
+                itemId,
+                quantity: item.quantity,
+                type: item.itemType
+            });
+
+            // First check if item exists
+            const existingItem = await Model.findById(itemId).session(session);
+            if (!existingItem) {
+                throw new Error(`Item not found with ID: ${itemId}`);
+            }
+
+            // Get the correct stock field based on the model
+            const currentStock = item.itemType === 'Livestock' ? 
+                existingItem.quantity :      // For Livestock model
+                existingItem.currentStock;   // For Product model
+
+            console.log('Stock check:', {
+                itemId,
+                type: item.itemType,
+                currentStock,
+                requestedQuantity: item.quantity,
+                name: existingItem.name || existingItem.type,
+                fullItem: existingItem
+            });
+            
+            // Then check if there's enough stock
+            if (typeof currentStock === 'undefined' || currentStock < item.quantity) {
+                throw new Error(`Insufficient stock for item ${existingItem.name || existingItem.type}. Available: ${currentStock}, Requested: ${item.quantity}`);
+            }
+
+            // Update the correct field based on model type
+            const updateField = item.itemType === 'Livestock' ? 
+                { quantity: currentStock - item.quantity } :    // For Livestock
+                { currentStock: currentStock - item.quantity }; // For Product
+
+            console.log('Updating stock with:', {
+                itemId,
+                type: item.itemType,
+                updateField
+            });
+
+            // If both checks pass, update the stock
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
             const updatedItem = await Model.findByIdAndUpdate(
                 itemId,
                 { $set: updateField },
@@ -92,6 +238,7 @@ exports.createInvoice = async (req, res) => {
             if (!updatedItem) {
                 throw new Error(`Failed to update stock for item ${itemId}`);
             }
+<<<<<<< HEAD
         }
 
         // Save the invoice first
@@ -140,14 +287,39 @@ exports.createInvoice = async (req, res) => {
         
         // Populate customer details for response
         await invoice.populate('customer', 'name contactNumber address email');
+=======
+
+            const newStock = item.itemType === 'Livestock' ? 
+                updatedItem.quantity :
+                updatedItem.currentStock;
+
+            console.log('Stock updated successfully:', {
+                itemId,
+                type: item.itemType,
+                previousStock: currentStock,
+                deductedQuantity: item.quantity,
+                newStock,
+                fullUpdatedItem: updatedItem
+            });
+        }
+
+        console.log('All stock updates completed successfully');
+
+        await session.commitTransaction();
+        console.log('Transaction committed successfully');
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         
         res.status(201).json({
             success: true,
             data: {
                 invoice,
                 previousBalance,
+<<<<<<< HEAD
                 newBalance,
                 pdfUrl: invoice.pdfPath
+=======
+                newBalance
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
             },
             message: 'Invoice created successfully'
         });
@@ -158,7 +330,11 @@ exports.createInvoice = async (req, res) => {
         
         res.status(400).json({
             success: false,
+<<<<<<< HEAD
             message: error.message
+=======
+            message: error.message || 'Failed to create invoice'
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         });
     } finally {
         session.endSession();

@@ -204,42 +204,72 @@ exports.getCustomerLedger = async (req, res) => {
       }
     }).select('invoiceNumber grandTotal remainingBalance createdAt');
 
+<<<<<<< HEAD
     // Format transactions - keep exact timestamp
     const formattedTransactions = transactions.flatMap(trans => 
       (trans.transactions || []).map(t => ({
         date: t.date,
         exactTimestamp: new Date(t.date).getTime(),
+=======
+    // Format transactions
+    const formattedTransactions = transactions.flatMap(trans => 
+      (trans.transactions || []).map(t => ({
+        date: t.date,
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         type: "Transaction",
         description: `Transaction - Receipt #${t.transactionNumber}`,
         amount: -t.amount,
         transactionMode: t.modeOfPayment,
+<<<<<<< HEAD
+=======
+        createdAt: trans.createdAt,
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         balanceAfterEntry: trans.currentBalance
       }))
     );
 
+<<<<<<< HEAD
     // Format invoices - keep exact timestamp
     const formattedInvoices = invoices.map(invoice => ({
       date: invoice.createdAt,
       exactTimestamp: new Date(invoice.createdAt).getTime(),
+=======
+    // Format invoices
+    const formattedInvoices = invoices.map(invoice => ({
+      date: invoice.createdAt,
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
       type: "Invoice",
       description: `Invoice #${invoice.invoiceNumber}`,
       amount: invoice.grandTotal,
       remainingBalance: invoice.remainingBalance,
       transactionMode: null,
+<<<<<<< HEAD
       balanceAfterEntry: invoice.remainingBalance
     }));
 
     // Combine and sort all entries by exact timestamp
     const ledgerDetails = [...formattedTransactions, ...formattedInvoices]
       .sort((a, b) => a.exactTimestamp - b.exactTimestamp);
+=======
+      createdAt: invoice.createdAt,
+      balanceAfterEntry: invoice.remainingBalance
+    }));
+
+    // Combine and sort all entries
+    const ledgerDetails = [...formattedTransactions, ...formattedInvoices]
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
     // Calculate running balance
     let runningBalance = customer.openingBalance;
     ledgerDetails.forEach(entry => {
       runningBalance += entry.amount;
       entry.balanceAfterEntry = runningBalance;
+<<<<<<< HEAD
       // Remove exactTimestamp from final output
       delete entry.exactTimestamp;
+=======
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
     });
 
     res.json({

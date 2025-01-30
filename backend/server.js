@@ -8,7 +8,10 @@ const productRoutes = require('./routes/productRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const { initializeProducts } = require('./controllers/productController');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+<<<<<<< HEAD
 const path = require('path');
+=======
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 const companySettingsRoutes = require('./routes/companySettingsRoutes');
 // Initialize express
 const app = express();
@@ -71,8 +74,12 @@ app.use((err, req, res, next) => {
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
+<<<<<<< HEAD
 // Add this near your other middleware configurations
 app.use('/invoices', express.static(path.join(__dirname, 'public/invoices')));
+=======
+
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 // Handle unhandled routes
 app.use('*', (req, res) => {
   res.status(404).json({

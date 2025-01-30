@@ -36,6 +36,7 @@ const invoiceSchema = new mongoose.Schema({
     remainingBalance: {
         type: Number,
         required: true
+<<<<<<< HEAD
     },
     pdfPath: {
         type: String,
@@ -47,6 +48,8 @@ const invoiceSchema = new mongoose.Schema({
     },
     whatsappError: {
         type: String
+=======
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
     }
 }, {
     timestamps: true

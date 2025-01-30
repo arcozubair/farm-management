@@ -64,6 +64,7 @@ yarn-error.log*
 *.tgz
 
 # Yarn Integrity file
+<<<<<<< HEAD
 .yarn-integrity
 
 # Ignore uploads directory
@@ -72,3 +73,6 @@ uploads/
 # Google credentials
 /config/google-credentials.json
 
+=======
+.yarn-integrity 
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd

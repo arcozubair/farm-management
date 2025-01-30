@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 node_modules
 .env
 
 # Google credentials
 
+=======
+node_modules
+>>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
