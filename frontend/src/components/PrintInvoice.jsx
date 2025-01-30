@@ -36,13 +36,8 @@ const globalStyles = `
 const PrintInvoice = ({ open, onClose, invoiceData }) => {
   const [companyDetails, setCompanyDetails] = useState(null);
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
   const componentRef = useRef(null);
   const { isMobile, isTablet, isDesktop } = useResponsiveness();
-=======
-  const { isMobile, isTablet, isDesktop } = useResponsiveness();
-  const componentRef = useRef(null);
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
@@ -103,11 +98,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
   console.log('invoiceData:', invoiceData);
 
   if (!invoiceData || loading) return (
-<<<<<<< HEAD
     <Dialog open={open} onClose={onClose} fullWidth fullScreen>
-=======
-    <Dialog open={open} onClose={onClose}>
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
       <DialogContent>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
           <CircularProgress />
@@ -139,7 +130,6 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
 
   const declaration = "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.";
 
-<<<<<<< HEAD
   // Desktop version of the invoice content
   const invoiceContent = (isPreview = false) => (
     <Box sx={{ p:0 }}>
@@ -310,212 +300,6 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-end'  // Aligns items to bottom of container
-=======
-  return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
-      fullWidth
-      sx={{
-        '& .MuiDialog-paper': {
-          width: '100%',
-          margin: isMobile ? 1 : isTablet ? 2 : 3,
-          maxWidth: isMobile ? '100%' : isTablet ? '600px' : '900px'
-        }
-      }}
-    >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        flexDirection: isMobile ? 'column' : 'row',
-        gap: isMobile ? 1 : 0
-      }}>
-        <Typography variant={isMobile ? "subtitle1" : "h6"}>Invoice Preview</Typography>
-        <Box>
-          <IconButton 
-            onClick={handlePrint}
-            color="primary"
-            size={isMobile ? "small" : "medium"}
-          >
-            <PrintIcon />
-          </IconButton>
-          <IconButton 
-            onClick={onClose}
-            size={isMobile ? "small" : "medium"}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <div 
-          ref={componentRef}
-          style={{ 
-            width: '100%',
-            height: '100%'
-          }}
-        >
-          <Box sx={{ 
-            p: isMobile ? 1 : 2,
-            '@media print': {
-              padding: 0,
-              margin: 0
-            }
-          }}>
-            <Paper elevation={0} sx={{ 
-              p: isMobile ? 1 : isTablet ? 2 : 3, 
-              border: '2px solid #000', 
-              height: isMobile ? 'auto' : '27.7cm',
-              fontFamily: 'Calibri',
-              '@media print': {
-                boxShadow: 'none',
-                margin: 0
-              }
-            }}>
-             <Typography variant={isMobile ? "h5" : "h4"} sx={{ 
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    letterSpacing: '0.1em',
-                   
-                    pb: 1,
-                    mb: 2
-                  }}>
-                     INVOICE
-                  </Typography>
-              {/* Header */}
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                flexDirection: isMobile ? 'column' : 'row',
-                gap: isMobile ? 2 : 0,
-                border: '1px solid #000',
-                p: 2,
-                mb: 2
-              }}>
-                {/* Left side - Company Details */}
-                <Box sx={{ width: isMobile ? '100%' : '60%' }}>
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      textTransform: 'uppercase', 
-                      fontWeight: 'bold',
-                      letterSpacing: '0.05em',
-                      fontSize: '1.3rem',
-                      mb: 2
-                    }}
-                  >
-                    {companyDetails?.companyName}
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
-                    {formatAddress(companyDetails?.address)}
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
-                    Phone: {companyDetails?.contactNumbers?.map(phone => phone).join(', ')}
-                  </Typography>
-                  {companyDetails?.gstNumber && (
-                    <Typography variant="body1" sx={{ fontSize: '0.8rem' }}>
-                      GSTIN: {companyDetails.gstNumber}
-                    </Typography>
-                  )}
-                </Box>
-
-                {/* Right side - Invoice Details */}
-                <Box sx={{ 
-                  width: isMobile ? '100%' : '40%',
-                  mt: isMobile ? 2 : 0 
-                }}>
-                 
-                  <Typography sx={{ fontWeight: 'bold' }}>
-                    Invoice No: {invoiceData.invoiceNumber}
-                  </Typography>
-                  <Typography sx={{ fontWeight: 'bold', mb: 1}}>
-                    Date: {formatDate(invoiceData.createdAt)}
-                  </Typography>
-                    <Typography sx={{ fontWeight: 'bold', textDecoration: 'underline'  }}>Party Details:</Typography>
-                <Typography sx={{ fontWeight: 'bold' }}>Name: {invoiceData.customer?.name}</Typography>
-                <Typography sx={{ fontWeight: 'bold' }}>Contact: {invoiceData.customer?.contactNumber || 'N/A'}</Typography>
-                </Box>
-                  {/* Party Details */}
-         
-              </Box>
-
-            
-
-              {/* Items Table */}
-              <Box sx={{ 
-                overflowX: isMobile ? 'auto' : 'hidden',
-                maxWidth: '100%'
-              }}>
-                <Table sx={{ 
-                  borderCollapse: 'collapse',
-                  minWidth: isMobile ? '600px' : 'auto',
-                  '& th, & td': { 
-                  
-                    fontSize: isMobile ? '0.8rem' : '0.9rem',
-                    padding: isMobile ? '4px' : '8px',
-                    fontFamily: 'Calibri',
-                    whiteSpace: isMobile ? 'nowrap' : 'normal'
-                  }
-                }}>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: '#f8f8f8' }}>
-                      <TableCell width="5%">Sr.</TableCell>
-                      <TableCell width="35%">Particulars</TableCell>
-                      <TableCell align="right" width="15%">Quantity</TableCell>
-                      <TableCell align="right" width="15%">Weight</TableCell>
-                      <TableCell align="right" width="15%">Rate</TableCell>
-                      <TableCell align="right" width="15%">Amount</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {invoiceData.items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>{item.name.charAt(0).toUpperCase() + item.name.slice(1)}</TableCell>
-                        <TableCell align="right">
-                          {item.quantity} {item.unit === "kg" ? "" :item.unit}
-                        </TableCell>
-                        <TableCell align="right">
-                          {item?.weight || '-'} {item?.weight ? item.unit : ''}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>₹{item.price?.toFixed(2) || '0.00'}</TableCell>
-                        <TableCell align="right">₹{((item.total || 0)).toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-
-              {/* Adjust the spacer to be flexible */}
-              <Box sx={{ 
-                flexGrow: 1, 
-                minHeight: '20px',
-                maxHeight: '150px'  // Limit maximum height
-              }} />
-
-              
-
-              {/* Totals Section */}
-              <Box sx={{ 
-                borderTop: '1px solid #000',
-                pt: 2,
-                width: '100%',
-                mt: 'auto'
-              }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'flex-end', 
-                  mb: 1,
-                  flexDirection: isMobile ? 'column' : 'row'
-                }}>
-                <Box sx={{ 
-  mt: 1,
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-end'  // Aligns items to bottom of container
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 }}>
   {/* Declaration */}
   <Box sx={{ maxWidth: '80%' }}>
@@ -532,7 +316,6 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
    
   </Box>
 </Box>
-<<<<<<< HEAD
           <Box sx={{ 
             width: '50%', 
             pr:  2 
@@ -692,144 +475,6 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
         </DialogContent>
       </Dialog>
     </>
-=======
-                  <Box sx={{ 
-                    width: isMobile ? '100%' : '50%', 
-                    pr: isMobile ? 0 : 2 
-                  }}>
-                  
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>Sub Total:</Typography>
-                      <Typography sx={{ fontFamily: 'Calibri' }}>₹{(invoiceData.grandTotal - (invoiceData.gstAmount || 0)).toFixed(2)}</Typography>
-                    </Box>
-                    {invoiceData.gstPercentage > 0 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>GST ({invoiceData.gstPercentage}%):</Typography>
-                        <Typography sx={{ fontFamily: 'Calibri' }}>₹{invoiceData.gstAmount?.toFixed(2) || '0.00'}</Typography>
-                      </Box>
-                    )}
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      borderTop: '2px solid #000',
-                      pt: 1,
-                      mt: 1
-                    }}>
-                      <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'Calibri' }}>Grand Total:</Typography>
-                      <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'Calibri' }}>
-                        ₹{invoiceData.grandTotal?.toFixed(2) || '0.00'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                {/* Footer */}
-                <Box sx={{ 
-                  mt: 4,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  borderTop: '1px solid #000',
-                  pt: 2
-                }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ fontStyle: 'italic', fontFamily: 'Calibri' }}>
-                      {companyDetails?.termsAndConditions}
-                    </Typography>
-                  </Box>
-                 
-                </Box>
-              </Box>
-
-              {/* Declaration and Signatures */}
-          
-
-{/* Declaration and Authorized Signatory on same line */}
-
-
-{/* Signatures Section */}
-<Box sx={{ 
-  display: 'flex', 
-  justifyContent: 'space-between',
-  mt: 4,
-  pt: 2,
-  flexDirection: isMobile ? 'column' : 'row',
-  gap: isMobile ? 2 : 0
-}}>
- 
-
-  {/* Company Section */}
-  <Box sx={{ 
-    width: '100%', 
-    textAlign: 'right',
-    border: '1px solid #000', 
-    px: 1
-  }}>
-    <Typography sx={{ 
-      fontWeight: 'bold',
-      fontSize: isMobile ? '0.9rem' : '1rem'
-    }}>
-      For {companyDetails?.companyName}
-    </Typography>
-    <Box sx={{ 
-      display: 'flex', 
-      justifyContent: 'space-between',
-      gap: 1,
-      py: 4,
-      pb: 0,
-      flexDirection: isMobile ? 'column' : 'row',
-      '& .MuiTypography-root': {
-        fontSize: isMobile ? '0.8rem' : '1rem'
-      }
-    }}>
-        <Box sx={{  mt: 1, pt: 1, }}>
-      <Typography>Customer's Seal & Signature</Typography>
-    </Box>
-      <Box sx={{  mt: 1, pt: 1}}>
-        <Typography>Prepared by</Typography>
-      </Box>
-      <Box sx={{  mt: 1, pt: 1}}>
-        <Typography>Verified by</Typography>
-      </Box>
-      <Box sx={{  mt: 1, pt: 1}}>
-      <Typography >
-        Authorized Signatory
-      </Typography>
-    </Box>
-    </Box>
-  </Box>
-</Box>
-
-{/* Terms and Conditions */}
-<Box sx={{ 
-  mt: 2,
-  pt: 1,
-  borderTop: '1px solid #000',
-  fontSize: '0.8rem'
-}}>
-  <Typography variant="body2" sx={{ fontStyle: 'italic',textAlign:'right' }}>
- E. & O.E.
-  </Typography>
-</Box>
-
-
-
-              {/* Terms and Conditions */}
-              <Box sx={{ 
-                mt: 2,
-                pt: 1,
-                borderTop: '1px solid #000',
-                fontSize: '0.8rem'
-              }}>
-                <Typography variant="body2" sx={{ fontStyle: 'italic', textAlign:'center' }}>
-                This a Computer Generated Invoice
-                </Typography>
-              </Box>
-            </Paper>
-          </Box>
-        </div>
-      </DialogContent>
-    </Dialog>
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   );
 };
 

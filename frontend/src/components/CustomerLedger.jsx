@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
-=======
-import React, { useState, useEffect } from 'react';
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 import {
   Dialog,
   DialogTitle,
@@ -25,14 +21,10 @@ import {
   CircularProgress,
   TextField,
   Stack,
-<<<<<<< HEAD
   Divider,
   Menu,
   MenuItem,
   ListItemIcon
-=======
-  Divider
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
@@ -44,7 +36,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import customerService from '../services/customerService';
 import CustomerLedgerSummary from './CustomerLedgerSummary';
-<<<<<<< HEAD
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -93,8 +84,6 @@ const ExportMenu = ({ anchorEl, onClose, onExportExcel, onExportPDF, onShareWhat
     </Menu>
   );
 };
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
 const CustomerLedger = ({ open, onClose, customer }) => {
   const [loading, setLoading] = useState(false);
@@ -104,15 +93,12 @@ const CustomerLedger = ({ open, onClose, customer }) => {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
-<<<<<<< HEAD
   const printRef = useRef(null);
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
   const {isMobile, isDesktop,isTablet} = useResponsiveness();
 
   // Add an id to help with printing
   const printContentId = 'printable-ledger-content';
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
   useEffect(() => {
     if (open && customer?._id) {
@@ -165,12 +151,8 @@ const CustomerLedger = ({ open, onClose, customer }) => {
       style: 'currency',
       currency: 'INR',
       minimumFractionDigits: 2
-<<<<<<< HEAD
     }).format(Math.abs(amount))
       .replace("₹", "₹ "); // Add space after rupee symbol
-=======
-    }).format(Math.abs(amount)).replace("₹", "₹ ");
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   };
 
   const formatDate = (dateString) => {
@@ -201,7 +183,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
     }
   };
 
-<<<<<<< HEAD
   // Ensure the ref is ready before printing
   const handlePrint = useReactToPrint({
     content: () => {
@@ -385,15 +366,12 @@ const CustomerLedger = ({ open, onClose, customer }) => {
     </>
   );
 
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   return (
     <Dialog
       open={open}
       onClose={onClose}
       maxWidth="lg"
       fullWidth
-<<<<<<< HEAD
       fullScreen
       PaperProps={{
         sx: {
@@ -422,18 +400,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
           zIndex: 1
         }}
       >
-=======
-      PaperProps={{
-        sx: {
-          height: '90vh',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column'
-        }
-      }}
-    >
-      <DialogTitle>
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" fontWeight="bold">Customer Ledger</Typography>
           <IconButton onClick={onClose}>
@@ -442,7 +408,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
         </Box>
       </DialogTitle>
 
-<<<<<<< HEAD
       <DialogContent sx={{ 
         flex: 1, 
         overflow: 'auto',
@@ -763,229 +728,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
             </>
           ) : null}
         </div>
-=======
-      <DialogContent sx={{ flex: 1, overflow: 'auto' }}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-            <CircularProgress />
-          </Box>
-        ) : ledgerData ? (
-          <>
-            {/* Date Range Selection */}
-            <Card sx={{ mb: 3, p: 2 }}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} md={3}>
-                    <DatePicker
-                      label="From Date"
-                      value={startDate}
-                      onChange={setStartDate}
-                      renderInput={(params) => <TextField {...params} fullWidth />}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <DatePicker
-                      label="To Date"
-                      value={endDate}
-                      onChange={setEndDate}
-                      renderInput={(params) => <TextField {...params} fullWidth />}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      variant="contained"
-                      startIcon={<FilterAltIcon />}
-                      onClick={handleDateRangeChange}
-                      fullWidth
-                    >
-                      Filter
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <Stack direction="row" spacing={2} justifyContent="flex-end">
-                      <Button startIcon={<PrintIcon />}>
-                        Print
-                      </Button>
-                      <Button startIcon={<DownloadIcon />}>
-                        Export
-                      </Button>
-                    </Stack>
-                  </Grid>
-                  <Grid item xs={12} md={1}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<SummarizeIcon />}
-                      onClick={() => {
-                        setShowSummary(true);
-                        fetchSummaryData();
-                      }}
-                    >
-                      View Summary
-                    </Button>
-                  </Grid>
-                </Grid>
-              </LocalizationProvider>
-            </Card>
-
-            {/* Customer Info Card - Enhanced */}
-            <Card sx={{ mb: 3, backgroundColor: '#f8f9fa' }}>
-              <CardContent>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={4}>
-                    <Typography variant="h6" gutterBottom color="primary">
-                      {ledgerData.customerInfo.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Contact: {ledgerData.customerInfo.contactNumber}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Address: {ledgerData.customerInfo.address}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} md={8}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6} md={4}>
-                        <Card elevation={0} sx={{ backgroundColor: 'primary.light', p: 2 }}>
-                          <Typography variant="subtitle2" color="primary.contrastText">
-                            Opening Balance
-                          </Typography>
-                          <Typography variant="h6" color="primary.contrastText">
-                            {formatAmount(ledgerData.startingBalance)}
-                          </Typography>
-                        </Card>
-                      </Grid>
-                      <Grid item xs={6} md={4}>
-                        <Card elevation={0} sx={{ backgroundColor: 'secondary.light', p: 2 }}>
-                          <Typography variant="subtitle2" color="secondary.contrastText">
-                            Current Balance
-                          </Typography>
-                          <Typography variant="h6" color="secondary.contrastText">
-                            {formatAmount(ledgerData.currentBalance)}
-                          </Typography>
-                        </Card>
-                      </Grid>
-                    </Grid>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-
-            {/* Enhanced Ledger Table */}
-            <TableContainer 
-              component={Paper} 
-              sx={{ 
-                mb: 3,
-                boxShadow: 3,
-                "& .MuiTableCell-head": {
-                  backgroundColor: "primary.main",
-                  color: "primary.contrastText",
-                  fontWeight: "bold"
-                }
-              }}
-            >
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Particulars</TableCell>
-                    <TableCell align="right">DR</TableCell>
-                    <TableCell align="right">CR</TableCell>
-                    <TableCell>Mode</TableCell>
-                    <TableCell align="right">Balance</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {/* Opening Balance Row */}
-                  <TableRow>
-                    <TableCell>{formatDate(ledgerData.ledgerDetails[0]?.date)}</TableCell>
-                    <TableCell><strong>Opening Balance</strong></TableCell>
-                    <TableCell align="right">-</TableCell>
-                    <TableCell align="right">-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell align="right">
-                      <strong>{formatAmount(ledgerData.startingBalance)}</strong>
-                    </TableCell>
-                  </TableRow>
-
-                  {ledgerData.ledgerDetails.map((entry, index) => (
-                    <TableRow 
-                      key={index}
-                      sx={{
-                        backgroundColor: entry.type === 'Invoice' 
-                          ? 'rgba(76, 175, 80, 0.04)' 
-                          : 'rgba(244, 67, 54, 0.04)'
-                      }}
-                    >
-                      <TableCell>{formatDate(entry.date)}</TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell align="right" sx={{ color: 'error.main' }}>
-                        {entry.type === 'Transaction' ? formatAmount(Math.abs(entry.amount)) : '-'}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {entry.type === 'Invoice' ? formatAmount(entry.amount) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {entry.transactionMode 
-                          ? entry.transactionMode.replace('_', ' ').toUpperCase() 
-                          : '-'}
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatAmount(entry.balanceAfterEntry)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-
-                  {/* Closing Balance Row */}
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell colSpan={5}>
-                      <strong>Closing Balance</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{formatAmount(ledgerData.currentBalance)}</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Enhanced Summary Cards */}
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <Card sx={{ backgroundColor: 'success.light' }}>
-                  <CardContent>
-                    <Typography color="success.contrastText" gutterBottom>
-                      Total Invoices (CR)
-                    </Typography>
-                    <Typography variant="h5" color="success.contrastText">
-                      {formatAmount(
-                        ledgerData.ledgerDetails
-                          .filter(entry => entry.type === 'Invoice')
-                          .reduce((sum, entry) => sum + entry.amount, 0)
-                      )}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Card sx={{ backgroundColor: 'error.light' }}>
-                  <CardContent>
-                    <Typography color="error.contrastText" gutterBottom>
-                      Total Payments (DR)
-                    </Typography>
-                    <Typography variant="h5" color="error.contrastText">
-                      {formatAmount(Math.abs(
-                        ledgerData.ledgerDetails
-                          .filter(entry => entry.type === 'Transaction')
-                          .reduce((sum, entry) => sum + entry.amount, 0)
-                      ))}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </>
-        ) : null}
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
       </DialogContent>
       <CustomerLedgerSummary
         open={showSummary}
@@ -993,7 +735,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
         summaryData={summaryData}
         loading={summaryLoading}
       />
-<<<<<<< HEAD
 
       {/* Add a fixed bottom action bar for mobile */}
       <Box 
@@ -1062,8 +803,6 @@ const CustomerLedger = ({ open, onClose, customer }) => {
           }
         `}
       </style>
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
     </Dialog>
   );
 };

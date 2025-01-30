@@ -101,10 +101,7 @@ const DayBook = () => {
   useEffect(() => {
     fetchDayBook();
     fetchCustomers();
-<<<<<<< HEAD
     fetchInvoices(selectedDate);
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   }, [selectedDate]);
 
   useEffect(() => {
@@ -143,7 +140,6 @@ const DayBook = () => {
     }
   };
 
-<<<<<<< HEAD
   const fetchInvoices = async (date) => {
     setLoadingInvoices(true);
     try {
@@ -158,8 +154,6 @@ const DayBook = () => {
     }
   };
 
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   const searchCustomers = async (searchText) => {
     try {
       setIsSearching(true);
@@ -317,7 +311,6 @@ const DayBook = () => {
     }
   };
 
-<<<<<<< HEAD
   const handleDateChange = (newDate) => {
     setSelectedDate(newDate);
     setIsTabLoading(true);
@@ -327,20 +320,6 @@ const DayBook = () => {
     ]).finally(() => {
       setIsTabLoading(false);
     });
-=======
-  const fetchInvoices = async (date) => {
-    setLoadingInvoices(true);
-    try {
-      const response = await getInvoicesByDate(date);
-      setInvoices(response.data || []);
-      console.log('Invoices111:', response.data);
-    } catch (error) {
-      console.error('Error fetching invoices:', error);
-      enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
-    } finally {
-      setLoadingInvoices(false);
-    }
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
   };
 
   return (
@@ -368,11 +347,7 @@ const DayBook = () => {
               <TextField
                 type="date"
                 value={selectedDate}
-<<<<<<< HEAD
                 onChange={(e) => handleDateChange(e.target.value)}
-=======
-                onChange={(e) => setSelectedDate(e.target.value)}
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
                 fullWidth
                 size={isMobile ? "small" : "medium"}
                 sx={{ 
