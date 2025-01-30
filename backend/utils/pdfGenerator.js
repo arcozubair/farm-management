@@ -32,12 +32,12 @@ const generateInvoicePDF = async (invoice, companyDetails) => {
         };
 
         console.log('Sending request to external PDF generator:', {
-            url: 'https://9db7-115-246-93-75.ngrok-free.app/api/generate-invoice',
+            url: 'https://8176-115-246-93-75.ngrok-free.app/api/generate-invoice',
             invoiceNumber: requestData.invoiceData.invoiceNumber
         });
         
         const response = await axios.post(
-            'https://9db7-115-246-93-75.ngrok-free.app/api/generate-invoice',
+            'https://8176-115-246-93-75.ngrok-free.app/api/generate-invoice',
             requestData,
             {
                 timeout: 30000,

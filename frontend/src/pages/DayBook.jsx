@@ -101,6 +101,7 @@ const DayBook = () => {
   useEffect(() => {
     fetchDayBook();
     fetchCustomers();
+    fetchInvoices(selectedDate);
   }, [selectedDate]);
 
   useEffect(() => {
@@ -136,6 +137,20 @@ const DayBook = () => {
       }
     } catch (error) {
       enqueueSnackbar('Failed to fetch customers', { variant: 'error' });
+    }
+  };
+
+  const fetchInvoices = async (date) => {
+    setLoadingInvoices(true);
+    try {
+      const response = await getInvoicesByDate(date);
+      setInvoices(response.data || []);
+      console.log('Invoices111:', response.data);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
+    } finally {
+      setLoadingInvoices(false);
     }
   };
 
@@ -296,18 +311,15 @@ const DayBook = () => {
     }
   };
 
-  const fetchInvoices = async (date) => {
-    setLoadingInvoices(true);
-    try {
-      const response = await getInvoicesByDate(date);
-      setInvoices(response.data || []);
-      console.log('Invoices111:', response.data);
-    } catch (error) {
-      console.error('Error fetching invoices:', error);
-      enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
-    } finally {
-      setLoadingInvoices(false);
-    }
+  const handleDateChange = (newDate) => {
+    setSelectedDate(newDate);
+    setIsTabLoading(true);
+    Promise.all([
+      fetchDayBook(),
+      fetchInvoices(newDate)
+    ]).finally(() => {
+      setIsTabLoading(false);
+    });
   };
 
   return (
@@ -335,7 +347,7 @@ const DayBook = () => {
               <TextField
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 fullWidth
                 size={isMobile ? "small" : "medium"}
                 sx={{ 
