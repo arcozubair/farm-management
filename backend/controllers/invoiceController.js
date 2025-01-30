@@ -4,12 +4,6 @@ const Livestock = require('../models/Livestock');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const CompanySettings = require('../models/CompanySettings');
-<<<<<<< HEAD
-const { generateInvoicePDF } = require('../utils/pdfGenerator');
-const { uploadToDrive } = require('../utils/googleDriveUploader');
-const { sendPdfToWhatsapp } = require('../utils/whatsappSender');
-=======
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
 
 exports.createInvoice = async (req, res) => {
     const session = await mongoose.startSession();
@@ -21,73 +15,6 @@ exports.createInvoice = async (req, res) => {
         console.log('Starting invoice creation:', {
             customerId: customer,
             itemsCount: items.length,
-<<<<<<< HEAD
-            grandTotal
-        });
-
-        // Get customer's current balance and company settings
-        const [customerDoc, settings] = await Promise.all([
-            Customer.findById(customer)
-                .select('name contactNumber address currentBalance email')
-                .session(session),
-            CompanySettings.findOne()
-        ]);
-
-        if (!customerDoc) {
-            throw new Error('Customer not found');
-        }
-        if (!settings) {
-            throw new Error('Company settings not found');
-        }
-
-        const previousBalance = customerDoc.currentBalance;
-        const newBalance = previousBalance + grandTotal;
-
-        // Create invoice
-        const invoice = new Invoice({
-            customer,
-            items: items.map(item => ({
-                itemId: item.itemId,
-                itemType: item.itemType,
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                total: item.total,
-                weight: item.weight,
-                unit: item.unit
-            })),
-            grandTotal,
-            remainingBalance: newBalance,
-            invoiceNumber: await generateInvoiceNumber()
-        });
-
-        // Update customer balance
-        customerDoc.currentBalance = newBalance;
-        await customerDoc.save({ session });
-
-        // Update stock for each item
-        for (const item of items) {
-            const Model = item.itemType === 'Livestock' ? Livestock : Product;
-            const itemId = item.itemId;
-
-            const stockItem = await Model.findById(itemId).session(session);
-            if (!stockItem) {
-                throw new Error(`Item ${itemId} not found`);
-            }
-
-            const currentStock = item.itemType === 'Livestock' ? 
-                stockItem.quantity : 
-                stockItem.currentStock;
-
-            if (currentStock < item.quantity) {
-                throw new Error(`Insufficient stock for item ${itemId}`);
-            }
-
-            const updateField = item.itemType === 'Livestock' ? 
-                { quantity: currentStock - item.quantity } : 
-                { currentStock: currentStock - item.quantity };
-
-=======
             grandTotal,
             items
         });
@@ -228,7 +155,6 @@ exports.createInvoice = async (req, res) => {
             });
 
             // If both checks pass, update the stock
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
             const updatedItem = await Model.findByIdAndUpdate(
                 itemId,
                 { $set: updateField },
@@ -238,56 +164,6 @@ exports.createInvoice = async (req, res) => {
             if (!updatedItem) {
                 throw new Error(`Failed to update stock for item ${itemId}`);
             }
-<<<<<<< HEAD
-        }
-
-        // Save the invoice first
-        await invoice.save({ session });
-
-        try {
-            // Generate PDF using external service with customer details
-            console.log('Generating PDF for invoice:', invoice.invoiceNumber);
-            const invoiceWithCustomer = {
-                ...invoice.toObject(),
-                customer: customerDoc.toObject() // Add customer details for PDF generation
-            };
-            
-            const pdfUrl = await generateInvoicePDF(invoiceWithCustomer, settings);
-            
-            // Update invoice with PDF URL
-            invoice.pdfPath = pdfUrl;
-            await invoice.save({ session });
-
-            // Send WhatsApp if customer has phone number
-            if (customerDoc.contactNumber) {
-                console.log('Sending WhatsApp to:', customerDoc.contactNumber);
-                const whatsappResult = await sendPdfToWhatsapp(
-                    customerDoc.contactNumber,
-                    pdfUrl,
-                    invoice.invoiceNumber,
-                    customerDoc.name
-                );
-                
-                if (whatsappResult.success) {
-                    console.log('WhatsApp sent successfully');
-                    invoice.whatsappSent = true;
-                } else {
-                    console.error('WhatsApp sending failed:', whatsappResult.error);
-                    invoice.whatsappSent = false;
-                    invoice.whatsappError = whatsappResult.error;
-                }
-                
-                await invoice.save({ session });
-            }
-        } catch (mediaError) {
-            console.error('PDF/WhatsApp processing error:', mediaError);
-        }
-
-        await session.commitTransaction();
-        
-        // Populate customer details for response
-        await invoice.populate('customer', 'name contactNumber address email');
-=======
 
             const newStock = item.itemType === 'Livestock' ? 
                 updatedItem.quantity :
@@ -307,19 +183,13 @@ exports.createInvoice = async (req, res) => {
 
         await session.commitTransaction();
         console.log('Transaction committed successfully');
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         
         res.status(201).json({
             success: true,
             data: {
                 invoice,
                 previousBalance,
-<<<<<<< HEAD
-                newBalance,
-                pdfUrl: invoice.pdfPath
-=======
                 newBalance
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
             },
             message: 'Invoice created successfully'
         });
@@ -330,11 +200,7 @@ exports.createInvoice = async (req, res) => {
         
         res.status(400).json({
             success: false,
-<<<<<<< HEAD
-            message: error.message
-=======
             message: error.message || 'Failed to create invoice'
->>>>>>> bd717611ca45c98ffa02d45267fe3933ea3f7ddd
         });
     } finally {
         session.endSession();
