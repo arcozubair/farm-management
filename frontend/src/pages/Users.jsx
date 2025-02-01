@@ -14,10 +14,10 @@ import {
 import { Add as AddIcon, PersonAdd as PersonAddIcon, Security as SecurityIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import PermissionsDialog from '../components/dialogs/PermissionsDialog';
-import UserForm from '../components/forms/UserForm';
 import * as userService from '../services/userService';
 import { DataGrid } from '@mui/x-data-grid';
 import useResponsive from '../hooks/useResponsive';
+import UserForm from '../components/Forms/UserForm';
 
 const Users = () => {
   const { enqueueSnackbar } = useSnackbar();
