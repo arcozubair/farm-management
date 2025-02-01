@@ -55,7 +55,7 @@ const Dashboard = () => {
         // Try to get products, but don't fail if not available
         let productsRes = { data: [] };
         try {
-          productsRes = await productService.getAll();
+          productsRes = await productService.getAllProducts();
         } catch (err) {
           console.log('Products not available yet');
         }
