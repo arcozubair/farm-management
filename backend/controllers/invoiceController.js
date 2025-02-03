@@ -4,6 +4,8 @@ const Livestock = require('../models/Livestock');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 const CompanySettings = require('../models/CompanySettings');
+const { generateInvoicePDF } = require('../utils/pdfGenerator');
+const { sendPdfToWhatsapp } = require('../utils/whatsappSender');
 
 exports.createInvoice = async (req, res) => {
     const session = await mongoose.startSession();
@@ -15,146 +17,71 @@ exports.createInvoice = async (req, res) => {
         console.log('Starting invoice creation:', {
             customerId: customer,
             itemsCount: items.length,
-            grandTotal,
-            items
+            grandTotal
         });
 
-        // Get customer's current balance first
-        const customerDoc = await Customer.findById(customer).session(session);
+        // Get customer's current balance and company settings
+        const [customerDoc, settings] = await Promise.all([
+            Customer.findById(customer)
+                .select('name contactNumber address currentBalance email')
+                .session(session),
+            CompanySettings.findOne()
+        ]);
+
         if (!customerDoc) {
             throw new Error('Customer not found');
+        }
+        if (!settings) {
+            throw new Error('Company settings not found');
         }
 
         const previousBalance = customerDoc.currentBalance;
         const newBalance = previousBalance + grandTotal;
 
-        console.log('Balance calculation:', {
-            previousBalance,
-            invoiceAmount: grandTotal,
-            newBalance
-        });
-
-        // Get company settings and generate invoice number
-        const settings = await CompanySettings.findOne().session(session);
-        if (!settings) {
-            throw new Error('Company settings not found');
-        }
-
-        // Generate invoice number
-        const nextInvoiceNumber = settings.numberSequences.lastInvoiceNumber + 1;
-        const prefix = settings.prefixes.invoicePrefix;
-        const year = new Date().getFullYear().toString().slice(-2);
-        const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
-        
-        const invoiceNumber = `${prefix}-${year}/${month}-${nextInvoiceNumber.toString().padStart(5, '0')}`;
-        console.log('Generated invoice number:', invoiceNumber);
-
-        // Update company settings with new invoice number
-        await CompanySettings.findOneAndUpdate(
-            {},
-            { 'numberSequences.lastInvoiceNumber': nextInvoiceNumber },
-            { session }
-        );
-
-        // Process each item to include name and unit
-        const processedItems = await Promise.all(items.map(async (item) => {
-            let itemDoc;
-            if (item.itemType === 'Product') {
-                itemDoc = await Product.findById(item.itemId);
-            } else if (item.itemType === 'Livestock') {
-                itemDoc = await Livestock.findById(item.itemId);
-            }
-
-            return {
-                ...item,
-                name: item.name || itemDoc?.name || 'Unknown Item',
-                
-            };
-        }));
-
         // Create invoice
         const invoice = new Invoice({
             customer,
-            invoiceNumber,
-            items: processedItems,
+            items: items.map(item => ({
+                itemId: item.itemId,
+                itemType: item.itemType,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.total,
+                weight: item.weight,
+                unit: item.unit
+            })),
             grandTotal,
-            remainingBalance: newBalance,    // Set remaining balance to new total balance
-            createdBy: req.user._id
+            remainingBalance: newBalance,
+            invoiceNumber: await generateInvoiceNumber()
         });
 
-        await invoice.save({ session });
-        console.log('Invoice created:', invoice._id);
+        // Update customer balance
+        customerDoc.currentBalance = newBalance;
+        await customerDoc.save({ session });
 
-        // Update customer balance and add invoice reference
-        await Customer.findByIdAndUpdate(
-            customer,
-            { 
-                $push: { 
-                    invoices: {
-                        invoiceId: invoice._id,
-                        date: new Date()
-                    }
-                },
-                currentBalance: newBalance  // Set the new total balance
-            },
-            { session, new: true }
-        );
-
-        console.log('Customer balance updated:', {
-            customerId: customer,
-            newBalance
-        });
-
-        // Update stock based on item type
-        console.log('Starting stock updates...');
-        
+        // Update stock for each item
         for (const item of items) {
             const Model = item.itemType === 'Livestock' ? Livestock : Product;
             const itemId = item.itemId;
 
-            console.log(`Processing ${item.itemType} item:`, {
-                itemId,
-                quantity: item.quantity,
-                type: item.itemType
-            });
-
-            // First check if item exists
-            const existingItem = await Model.findById(itemId).session(session);
-            if (!existingItem) {
-                throw new Error(`Item not found with ID: ${itemId}`);
+            const stockItem = await Model.findById(itemId).session(session);
+            if (!stockItem) {
+                throw new Error(`Item ${itemId} not found`);
             }
 
-            // Get the correct stock field based on the model
             const currentStock = item.itemType === 'Livestock' ? 
-                existingItem.quantity :      // For Livestock model
-                existingItem.currentStock;   // For Product model
+                stockItem.quantity : 
+                stockItem.currentStock;
 
-            console.log('Stock check:', {
-                itemId,
-                type: item.itemType,
-                currentStock,
-                requestedQuantity: item.quantity,
-                name: existingItem.name || existingItem.type,
-                fullItem: existingItem
-            });
-            
-            // Then check if there's enough stock
-            if (typeof currentStock === 'undefined' || currentStock < item.quantity) {
-                throw new Error(`Insufficient stock for item ${existingItem.name || existingItem.type}. Available: ${currentStock}, Requested: ${item.quantity}`);
+            if (currentStock < item.quantity) {
+                throw new Error(`Insufficient stock for item ${itemId}`);
             }
 
-            // Update the correct field based on model type
             const updateField = item.itemType === 'Livestock' ? 
-                { quantity: currentStock - item.quantity } :    // For Livestock
-                { currentStock: currentStock - item.quantity }; // For Product
+                { quantity: currentStock - item.quantity } : 
+                { currentStock: currentStock - item.quantity };
 
-            console.log('Updating stock with:', {
-                itemId,
-                type: item.itemType,
-                updateField
-            });
-
-            // If both checks pass, update the stock
             const updatedItem = await Model.findByIdAndUpdate(
                 itemId,
                 { $set: updateField },
@@ -164,32 +91,62 @@ exports.createInvoice = async (req, res) => {
             if (!updatedItem) {
                 throw new Error(`Failed to update stock for item ${itemId}`);
             }
-
-            const newStock = item.itemType === 'Livestock' ? 
-                updatedItem.quantity :
-                updatedItem.currentStock;
-
-            console.log('Stock updated successfully:', {
-                itemId,
-                type: item.itemType,
-                previousStock: currentStock,
-                deductedQuantity: item.quantity,
-                newStock,
-                fullUpdatedItem: updatedItem
-            });
         }
 
-        console.log('All stock updates completed successfully');
+        // Save the invoice first
+        await invoice.save({ session });
+
+        try {
+            // Generate PDF using external service with customer details
+            console.log('Generating PDF for invoice:', invoice.invoiceNumber);
+            const invoiceWithCustomer = {
+                ...invoice.toObject(),
+                customer: customerDoc.toObject() // Add customer details for PDF generation
+            };
+            
+            const pdfUrl = await generateInvoicePDF(invoiceWithCustomer, settings);
+            
+            // Update invoice with PDF URL
+            invoice.pdfPath = pdfUrl;
+            await invoice.save({ session });
+
+            // Send WhatsApp if customer has phone number
+            if (customerDoc.contactNumber) {
+                console.log('Sending WhatsApp to:', customerDoc.contactNumber);
+                const whatsappResult = await sendPdfToWhatsapp(
+                    customerDoc.contactNumber,
+                    pdfUrl,
+                    invoice.invoiceNumber,
+                    customerDoc.name
+                );
+                
+                if (whatsappResult.success) {
+                    console.log('WhatsApp sent successfully');
+                    invoice.whatsappSent = true;
+                } else {
+                    console.error('WhatsApp sending failed:', whatsappResult.error);
+                    invoice.whatsappSent = false;
+                    invoice.whatsappError = whatsappResult.error;
+                }
+                
+                await invoice.save({ session });
+            }
+        } catch (mediaError) {
+            console.error('PDF/WhatsApp processing error:', mediaError);
+        }
 
         await session.commitTransaction();
-        console.log('Transaction committed successfully');
+        
+        // Populate customer details for response
+        await invoice.populate('customer', 'name contactNumber address email');
         
         res.status(201).json({
             success: true,
             data: {
                 invoice,
                 previousBalance,
-                newBalance
+                newBalance,
+                pdfUrl: invoice.pdfPath
             },
             message: 'Invoice created successfully'
         });
@@ -200,7 +157,7 @@ exports.createInvoice = async (req, res) => {
         
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to create invoice'
+            message: error.message
         });
     } finally {
         session.endSession();

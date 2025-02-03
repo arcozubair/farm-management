@@ -38,19 +38,16 @@ const Login = () => {
       username: Yup.string().required('Username is required'),
       password: Yup.string().required('Password is required'),
     }),
-    onSubmit: async (values) => {
+    onSubmit: async (values, { setSubmitting }) => {
       setLoading(true);
       setError('');
       try {
         await login(values.username, values.password);
-        enqueueSnackbar('Login successful! Welcome back.', { 
-          variant: 'success'
-        });
       } catch (err) {
-        setError(err.message || 'Failed to login');
-        enqueueSnackbar(err.message || 'Failed to login', { 
-          variant: 'error'
-        });
+        console.log('Login component error:', err); // Debug log
+        setError(err.message || 'Invalid credentials');
+        // Don't show another snackbar here since AuthContext already shows one
+        setSubmitting(false);
       } finally {
         setLoading(false);
       }

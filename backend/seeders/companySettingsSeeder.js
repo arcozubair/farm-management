@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 const CompanySettings = require('../models/CompanySettings');
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load env vars from the correct path
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const companyData = {
   companyName: "Dairy Farm Management",
@@ -31,17 +35,19 @@ const companyData = {
 
 const seedCompanySettings = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/farm_management';
+    const mongoUri = process.env.MONGODB_URI;
     
     if (!mongoUri) {
       throw new Error('MONGODB_URI is not defined in environment variables');
     }
 
     console.log('Connecting to MongoDB...');
-    // Connect to MongoDB
+    // Connect to MongoDB with updated options
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      retryWrites: true,
+      w: 'majority'
     });
     console.log('Connected to MongoDB successfully!');
 

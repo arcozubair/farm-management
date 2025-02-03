@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://192.168.17.185:5000/api',
+  baseURL: 'http://localhost:5000/api',
   withCredentials: true,
   timeout: 10000, 
   headers: {
@@ -14,6 +14,7 @@ api.interceptors.request.use(
     console.log('API Request:', {
       url: config.url,
       method: config.method,
+      data: config.data,
       headers: config.headers
     });
     
@@ -43,13 +44,16 @@ api.interceptors.response.use(
       url: error.config?.url,
       status: error.response?.status,
       data: error.response?.data,
-      message: error.message
+      message: error.message,
+      fullError: error
     });
     
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
