@@ -12,7 +12,10 @@ exports.createInvoice = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { customer, items, grandTotal } = req.body;
+        const { customer, items, grandTotal, invoiceDate } = req.body;
+
+        // Create a new date object from the invoice date or use current date
+        const createdAt = invoiceDate ? new Date(invoiceDate) : new Date();
 
         // Validate input early
         if (!customer || !Array.isArray(items) || items.length === 0 || !grandTotal) {
@@ -59,7 +62,7 @@ exports.createInvoice = async (req, res) => {
             };
         });
 
-        // Create invoice
+        // Create invoice with explicit date
         const invoice = new Invoice({
             customer,
             items: items.map(item => ({
@@ -74,7 +77,8 @@ exports.createInvoice = async (req, res) => {
             })),
             grandTotal,
             remainingBalance: customerDoc.currentBalance + grandTotal,
-            invoiceNumber: await generateInvoiceNumber()
+            invoiceNumber: await generateInvoiceNumber(),
+            createdAt // Explicitly set the creation date
         });
 
         // Batch update all stock items
@@ -457,9 +461,19 @@ exports.getInvoicesByCustomer = async (req, res) => {
 
 exports.getInvoicesByDate = async (req, res) => {
   try {
+    // Parse the input date and set to start of day in local timezone
     const date = new Date(req.params.date);
-    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Set end of day in local timezone
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log('Fetching invoices between:', {
+      startOfDay: startOfDay.toISOString(),
+      endOfDay: endOfDay.toISOString()
+    });
 
     const invoices = await Invoice.find({
       createdAt: {
@@ -468,11 +482,14 @@ exports.getInvoicesByDate = async (req, res) => {
       }
     }).populate('customer', 'name contactNumber');
 
+    console.log('Found invoices:', invoices.length);
+
     res.status(200).json({
       success: true,
       data: invoices
     });
   } catch (error) {
+    console.error('Error in getInvoicesByDate:', error);
     res.status(400).json({
       success: false,
       message: error.message
