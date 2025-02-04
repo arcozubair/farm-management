@@ -15,6 +15,7 @@ import { createTheme, ThemeProvider } from '@mui/material';
 import DayBook from './pages/DayBook';
 import CustomerLedger from './components/customer/CustomerLedger';
 import theme from './theme';
+import Settings from './pages/Settings';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -100,6 +101,14 @@ function App() {
           element={
             <ProtectedRoute roles={['admin']}>
               <Users />
+            </ProtectedRoute>
+          }
+        />
+          <Route
+          path="/settings"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <Settings />
             </ProtectedRoute>
           }
         />

@@ -115,6 +115,13 @@ const MainLayout = ({ children }) => {
       role: 'admin',
       iconColor: '#f44336'
     },
+    { 
+      path: '/settings', 
+      label: 'Company Settings', 
+      icon: '/icons/settings.png',
+      role: 'admin',
+      iconColor: '#f44336'
+    },
   ];
 
   const handleDrawerToggle = () => {
