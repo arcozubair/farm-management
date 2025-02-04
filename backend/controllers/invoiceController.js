@@ -12,10 +12,7 @@ exports.createInvoice = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { customer, items, grandTotal, invoiceDate } = req.body;
-
-        // Create a new date object from the invoice date or use current date
-        const createdAt = invoiceDate ? new Date(invoiceDate) : new Date();
+        const { customer, items, grandTotal } = req.body;
 
         // Validate input early
         if (!customer || !Array.isArray(items) || items.length === 0 || !grandTotal) {
@@ -62,126 +59,107 @@ exports.createInvoice = async (req, res) => {
             };
         });
 
-        // Create invoice with explicit date
+        // Generate invoice number first
+        const invoiceNumber = await generateInvoiceNumber();
+
+        // Create invoice
         const invoice = new Invoice({
             customer,
+            invoiceNumber,
             items: items.map(item => ({
                 itemId: item.itemId,
                 itemType: item.itemType,
                 name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                total: item.total,
-                weight: item.weight,
+                quantity: Number(item.quantity),
+                price: Number(item.price),
+                total: Number(item.total),
+                weight: Number(item.weight || 0),
                 unit: item.unit
             })),
-            grandTotal,
-            remainingBalance: customerDoc.currentBalance + grandTotal,
-            invoiceNumber: await generateInvoiceNumber(),
-            createdAt // Explicitly set the creation date
+            grandTotal: Number(grandTotal),
+            remainingBalance: customerDoc.currentBalance + Number(grandTotal)
         });
 
-        // Batch update all stock items
-        await Promise.all(stockValidation.map(item => {
-            const updateField = item.isLivestock ? 
-                { quantity: item.newStock } : 
-                { currentStock: item.newStock };
-            
-            return item.Model.findByIdAndUpdate(
-                item.itemId,
-                { $set: updateField },
-                { session, new: true }
-            );
-        }));
+        // Update customer balance
+        customerDoc.currentBalance += Number(grandTotal);
 
-        // Update customer balance and save invoice
-        customerDoc.currentBalance += grandTotal;
-        
+        // Save all changes within the transaction
         await Promise.all([
+            ...stockValidation.map(item => {
+                const updateField = item.isLivestock ? 
+                    { quantity: item.newStock } : 
+                    { currentStock: item.newStock };
+                
+                return item.Model.findByIdAndUpdate(
+                    item.itemId,
+                    { $set: updateField },
+                    { session, new: true }
+                );
+            }),
             customerDoc.save({ session }),
             invoice.save({ session })
         ]);
 
-        // Handle PDF generation and WhatsApp notification asynchronously
-        const mediaPromises = [];
-        
-        // Generate PDF
-        const pdfPromise = generateInvoicePDF({
-            ...invoice.toObject(),
-            customer: customerDoc.toObject()
-        }, settings)
-        .then(async (pdfUrl) => {
-            invoice.pdfPath = pdfUrl;
-            await invoice.save({ session });
-            return pdfUrl;
-        })
-        .catch(error => {
-            console.error('PDF generation failed:', error);
-            return null;
-        });
+        // Commit transaction
+        await session.commitTransaction();
+        session.endSession();
 
-        mediaPromises.push(pdfPromise);
+        // After successful transaction, handle PDF and WhatsApp
+        let pdfUrl;
+        try {
+            pdfUrl = await generateInvoicePDF({
+                ...invoice.toObject(),
+                customer: customerDoc.toObject()
+            }, settings);
 
-        // Send WhatsApp if applicable
-        if (customerDoc.contactNumber && customerDoc.whatsappNotification) {
-            const whatsappPromise = pdfPromise
-                .then(pdfUrl => {
-                    if (!pdfUrl) return;
-                    return sendPdfToWhatsapp(
-                        customerDoc.contactNumber,
-                        pdfUrl,
-                        invoice.invoiceNumber,
-                        customerDoc.name
-                    );
-                })
-                .then(async result => {
-                    if (result?.success) {
-                        invoice.whatsappSent = true;
-                    } else {
-                        invoice.whatsappSent = false;
-                        invoice.whatsappError = result?.error;
-                    }
-                    await invoice.save({ session });
-                })
-                .catch(error => {
-                    console.error('WhatsApp sending failed:', error);
+            if (pdfUrl) {
+                await Invoice.findByIdAndUpdate(invoice._id, { pdfPath: pdfUrl });
+            }
+
+            // Handle WhatsApp notification
+            if (customerDoc.contactNumber && customerDoc.whatsappNotification && pdfUrl) {
+                const whatsappResult = await sendPdfToWhatsapp(
+                    customerDoc.contactNumber,
+                    pdfUrl,
+                    invoice.invoiceNumber,
+                    customerDoc.name
+                );
+
+                await Invoice.findByIdAndUpdate(invoice._id, {
+                    whatsappSent: whatsappResult?.success || false,
+                    whatsappError: whatsappResult?.error
                 });
-
-            mediaPromises.push(whatsappPromise);
+            }
+        } catch (mediaError) {
+            console.error('PDF/WhatsApp processing error:', mediaError);
         }
 
-        // Wait for transaction-critical operations
-        await session.commitTransaction();
-        
         // Populate customer details for response
-        await invoice.populate('customer', 'name contactNumber address email');
-
-        // Don't wait for media operations to complete
-        Promise.all(mediaPromises).catch(error => {
-            console.error('Media processing error:', error);
-        });
+        const populatedInvoice = await Invoice.findById(invoice._id)
+            .populate('customer', 'name contactNumber address email');
 
         res.status(201).json({
             success: true,
             data: {
-                invoice,
+                invoice: populatedInvoice,
                 previousBalance: customerDoc.currentBalance - grandTotal,
                 newBalance: customerDoc.currentBalance,
-                pdfUrl: invoice.pdfPath
+                pdfUrl
             },
             message: 'Invoice created successfully'
         });
 
     } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+        session.endSession();
         console.error('Error in createInvoice:', error);
         
         res.status(400).json({
             success: false,
             message: error.message
         });
-    } finally {
-        session.endSession();
     }
 };
 
