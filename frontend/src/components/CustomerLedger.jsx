@@ -254,7 +254,7 @@ const CustomerLedger = ({ open, onClose, customer }) => {
         formatDate(entry.date),
         entry.description,
         entry.type === 'Transaction' ? formatAmount(Math.abs(entry.amount)) : '-',
-        entry.type === 'Invoice' ? formatAmount(entry.amount) : '-',
+        entry.type === 'Sale' ? formatAmount(entry.amount) : '-',
         entry.transactionMode ? entry.transactionMode.replace('_', ' ').toUpperCase() : '-',
         formatAmount(entry.balanceAfterEntry)
       ]),
@@ -294,7 +294,7 @@ const CustomerLedger = ({ open, onClose, customer }) => {
       formatDate(entry.date),
       entry.description,
       entry.type === 'Transaction' ? formatAmountForPDF(Math.abs(entry.amount)) : '-',
-      entry.type === 'Invoice' ? formatAmountForPDF(entry.amount) : '-',
+      entry.type === 'Sale' ? formatAmountForPDF(entry.amount) : '-',
       entry.transactionMode ? entry.transactionMode.replace('_', ' ').toUpperCase() : '-',
       formatAmountForPDF(entry.balanceAfterEntry)
     ]);
@@ -610,13 +610,13 @@ const CustomerLedger = ({ open, onClose, customer }) => {
                           align="right" 
                           className="debit-amount amount-cell"
                         >
-                          {entry.type === 'Transaction' ? formatAmount(Math.abs(entry.amount)) : '-'}
+                          {entry.type === 'Sale' ? formatAmount(entry.amount) : '-'}
                         </TableCell>
                         <TableCell 
                           align="right"
                           className="credit-amount amount-cell"
                         >
-                          {entry.type === 'Invoice' ? formatAmount(entry.amount) : '-'}
+                          {entry.type === 'Transaction' ? formatAmount(Math.abs(entry.amount)) : '-'}
                         </TableCell>
                         <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                           {entry.transactionMode 
@@ -694,7 +694,7 @@ const CustomerLedger = ({ open, onClose, customer }) => {
                       >
                         {formatAmount(
                           ledgerData.ledgerDetails
-                            .filter(entry => entry.type === 'Invoice')
+                            .filter(entry => entry.type === 'Sale')
                             .reduce((sum, entry) => sum + entry.amount, 0)
                         )}
                       </Typography>

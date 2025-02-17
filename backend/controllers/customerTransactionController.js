@@ -33,7 +33,6 @@ exports.addTransaction = async (req, res) => {
 
     // Update current balance
     customerTransaction.currentBalance -= amount;
-    customerTransaction.transactions.push(newTransaction);
 
     // Save transaction
     await customerTransaction.save();
@@ -45,11 +44,7 @@ exports.addTransaction = async (req, res) => {
     }
 
     customer.currentBalance = customerTransaction.currentBalance;
-    customer.transactions.push({
-      transactionId: customerTransaction._id,
-      date: newTransaction.date
-    });
-
+   
     await customer.save();
 
     // Send WhatsApp notification if enabled

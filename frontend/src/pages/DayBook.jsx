@@ -55,6 +55,8 @@ import {
 } from '@mui/icons-material';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PrintInvoice from '../components/PrintInvoice';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import GroupInvoiceDialog from '../components/GroupInvoiceDialog';
 
 const determineShift = () => {
   const currentHour = new Date().getHours();
@@ -97,6 +99,7 @@ const DayBook = () => {
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printInvoiceOpen, setPrintInvoiceOpen] = useState(false);
+  const [groupInvoiceOpen, setGroupInvoiceOpen] = useState(false);
 
   useEffect(() => {
     fetchDayBook();
@@ -136,7 +139,7 @@ const DayBook = () => {
         setCustomers(response.data);
       }
     } catch (error) {
-      enqueueSnackbar('Failed to fetch customers', { variant: 'error' });
+      console.error('Error fetching customers:', error);
     }
   };
 
@@ -343,7 +346,7 @@ const DayBook = () => {
                 Day Book
               </Typography>
             </Grid>
-            <Grid item xs={6} md={5}>
+            <Grid item xs={6} md={3}>
               <TextField
                 type="date"
                 value={selectedDate}
@@ -357,7 +360,7 @@ const DayBook = () => {
                 }}
               />
             </Grid>
-            <Grid item xs={6} md={4}>
+            <Grid item xs={6} md={6}>
               <Box sx={{ 
                 display: 'flex', 
                 gap: 1,
@@ -366,7 +369,7 @@ const DayBook = () => {
               }}>
                 <Tooltip title={isMobile ? "Add Collection" : ""}>
                   <Button 
-                    variant={"contained"}
+                    variant="contained"
                     onClick={() => {
                       setDialogType('collection');
                       setOpenDialog(true);
@@ -391,7 +394,7 @@ const DayBook = () => {
 
                 <Tooltip title={isMobile ? "Add Transaction" : ""}>
                   <Button 
-                      variant={"contained"}
+                    variant="contained"
                     onClick={() => {
                       setDialogType('transaction');
                       setOpenDialog(true);
@@ -416,7 +419,7 @@ const DayBook = () => {
 
                 <Tooltip title={isMobile ? "Add Sale" : ""}>
                   <Button 
-                     variant={"contained"}
+                    variant="contained"
                     color="success"
                     onClick={() => setSaleDialogOpen(true)}
                     sx={{ 
@@ -432,6 +435,29 @@ const DayBook = () => {
                     ) : (
                       <>
                         Add Sale
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title={isMobile ? "Group Invoice" : ""}>
+                  <Button 
+                    variant="contained"
+                    color="secondary"
+                    onClick={() => setGroupInvoiceOpen(true)}
+                    sx={{ 
+                      minWidth: isMobile ? '40px' : 'auto',
+                      width: isMobile ? '40px' : 'auto',
+                      height: isMobile ? '40px' : 'auto',
+                      borderRadius: '12px',
+                      p: isMobile ? '8px' : 'auto'
+                    }}
+                  >
+                    {isMobile ? (
+                      <ReceiptLongIcon />
+                    ) : (
+                      <>
+                        Group Invoice
                       </>
                     )}
                   </Button>
@@ -711,6 +737,7 @@ const DayBook = () => {
                             <IconButton 
                               onClick={() => handlePrintReceipt(params.value)}
                               size={isMobile ? "small" : "medium"}
+                               color="primary"
                             >
                               <PrintIcon />
                             </IconButton>
@@ -747,13 +774,14 @@ const DayBook = () => {
                           <TableCell>Items</TableCell>
                           <TableCell align="right">Total Amount</TableCell>
                           <TableCell align="right">Time</TableCell>
+                          <TableCell align="center">WhatsApp</TableCell>
                           <TableCell align="center">Action</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {invoices.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                            <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
                               <Box sx={{ textAlign: 'center' }}>
                                 <ReceiptLongIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
                                 <Typography color="textSecondary">
@@ -780,6 +808,14 @@ const DayBook = () => {
                                   {new Date(invoice.createdAt).toLocaleTimeString()}
                                 </TableCell>
                                 <TableCell align="center">
+                                  <Tooltip title={invoice.whatsappSent ? "Sent to WhatsApp" : "Not sent to WhatsApp"}>
+                                    <WhatsAppIcon 
+                                      color={invoice.whatsappSent ? "success" : "disabled"} 
+                                      sx={{ fontSize: 20 }}
+                                    />
+                                  </Tooltip>
+                                </TableCell>
+                                <TableCell align="center">
                                   <IconButton 
                                     onClick={() => {
                                       setSelectedInvoice(invoice);
@@ -802,6 +838,7 @@ const DayBook = () => {
                                   ₹{invoices.reduce((sum, inv) => sum + inv.grandTotal, 0)}
                                 </strong>
                               </TableCell>
+                              <TableCell />
                               <TableCell />
                               <TableCell />
                             </TableRow>
@@ -1032,6 +1069,13 @@ const DayBook = () => {
           setSelectedInvoice(null);
         }}
         invoiceData={selectedInvoice}
+      />
+
+      {/* Add GroupInvoiceDialog component */}
+      <GroupInvoiceDialog
+        open={groupInvoiceOpen}
+        onClose={() => setGroupInvoiceOpen(false)}
+        customers={customers}
       />
     </Box>
   );

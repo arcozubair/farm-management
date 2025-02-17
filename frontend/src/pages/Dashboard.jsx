@@ -1,205 +1,269 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
   Box,
+  Grid,
+  Typography,
+  useTheme,
   CircularProgress,
   Alert,
 } from '@mui/material';
 import {
-  PieChart,
-  Pets,
-  Inventory2,
-  AttachMoney,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+import CountUp from 'react-countup';
+import { styled } from '@mui/material/styles';
+import { 
+  Pets, 
+  EggAlt, 
+  LocalDrink, 
+  AttachMoney 
 } from '@mui/icons-material';
-import * as livestockService from '../services/livestockService';
-import * as productService from '../services/productService';
-import { useLocation } from 'react-router-dom';
 
-const StatCard = ({ title, value, icon, color }) => (
-  <Card sx={{ height: '100%' }}>
-    <CardContent>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+// Modern styled components
+const StyledCard = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  borderRadius: 20,
+  background: 'rgba(255, 255, 255, 0.9)',
+  backdropFilter: 'blur(10px)',
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-5px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  }
+}));
+
+const ChartContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  borderRadius: 20,
+  background: 'rgba(255, 255, 255, 0.9)',
+  backdropFilter: 'blur(10px)',
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+  height: '100%',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-5px)',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+  }
+}));
+
+const StatCard = ({ title, value, unit, icon, color }) => (
+  <StyledCard>
+    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+      <Box 
+        sx={{ 
+          p: 1.5, 
+          borderRadius: 2, 
+          backgroundColor: `${color}15`
+        }}
+      >
         {icon}
-        <Typography variant="h6" sx={{ ml: 1 }}>
-          {title}
-        </Typography>
       </Box>
-      <Typography variant="h4" component="div">
-        {value}
+    </Box>
+    <Typography variant="h6" color="text.secondary" gutterBottom>
+      {title}
+    </Typography>
+    <Typography variant="h4" component="div" sx={{ color, fontWeight: 'bold' }}>
+      <CountUp end={value} separator="," duration={2} />
+      <Typography component="span" variant="h6" sx={{ ml: 1, opacity: 0.7 }}>
+        {unit}
       </Typography>
-    </CardContent>
-  </Card>
+    </Typography>
+  </StyledCard>
 );
 
 const Dashboard = () => {
-  const location = useLocation();
+  const theme = useTheme();
   const [data, setData] = useState({
-    livestock: [],
-    products: [],
+    totalMilk: 5000,
+    totalEggs: 120,
+    totalSheep: 200,
+    totalSales: 57000,
+    productionData: [
+      { month: 'Jan', milk: 4200, eggs: 110 },
+      { month: 'Feb', milk: 4500, eggs: 115 },
+      { month: 'Mar', milk: 5000, eggs: 120 },
+    ],
+    salesData: [
+      { month: 'Jan', revenue: 52000 },
+      { month: 'Feb', revenue: 54000 },
+      { month: 'Mar', revenue: 57000 },
+    ]
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Get livestock stats
-        const livestockRes = await livestockService.getLivestockStats();
-        
-        // Try to get products, but don't fail if not available
-        let productsRes = { data: [] };
-        try {
-          productsRes = await productService.getAllProducts();
-        } catch (err) {
-          console.log('Products not available yet');
-        }
-
-        setData({
-          livestock: Array.isArray(livestockRes?.data) ? livestockRes.data : [],
-          products: Array.isArray(productsRes?.data) ? productsRes.data : [],
-        });
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100%',
-          p: 3,
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
-  }
-
-  // Safely calculate totals with null checks
-  const totalLivestock = Array.isArray(data.livestock) 
-    ? data.livestock.reduce((acc, item) => acc + (Number(item.totalCount) || 0), 0)
-    : 0;
-
-  const totalProducts = Array.isArray(data.products)
-    ? data.products.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0)
-    : 0;
-
-  const getActiveStyle = (path) => {
-    return location.pathname === path ? {
-      backgroundColor: '#f3f4f6', // Light gray background for active tab
-      borderRadius: '0.375rem', // Rounded corners
-      color: '#4f46e5', // Indigo text for active state
-    } : {};
-  };
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>;
+  if (error) return <Alert severity="error">{error}</Alert>;
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
+    <Box sx={{ 
+      p: 3,
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    }}>
+      <Typography 
+        variant="h4" 
+        gutterBottom 
+        sx={{ 
+          mb: 4, 
+          fontWeight: 'bold',
+          color: theme.palette.text.primary,
+          textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
+        }}
+      >
+        Farm Dashboard
       </Typography>
 
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Livestock"
-            value={totalLivestock}
-            icon={<Pets color="primary" />}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Products"
-            value={totalProducts}
-            icon={<Inventory2 color="secondary" />}
-          />
-        </Grid>
-      </Grid>
-
-      {/* Detailed Statistics */}
       <Grid container spacing={3}>
-        {/* Livestock Statistics */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Livestock Overview
-              </Typography>
-              {Array.isArray(data.livestock) && data.livestock.length > 0 ? (
-                data.livestock.map((item, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 1,
-                    }}
-                  >
-                    <Typography>
-                      {item.type || item._id?.type} ({item.gender || item._id?.gender})
-                    </Typography>
-                    <Typography>{item.totalCount || 0}</Typography>
-                  </Box>
-                ))
-              ) : (
-                <Typography color="text.secondary">No livestock data available</Typography>
-              )}
-            </CardContent>
-          </Card>
+        {/* Stats Cards */}
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Milk"
+            value={data.totalMilk}
+            unit="L"
+            icon={<LocalDrink sx={{ fontSize: 30, color: theme.palette.primary.main }} />}
+            color={theme.palette.primary.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Eggs"
+            value={data.totalEggs}
+            unit="dozens"
+            icon={<EggAlt sx={{ fontSize: 30, color: theme.palette.secondary.main }} />}
+            color={theme.palette.secondary.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Sheep Count"
+            value={data.totalSheep}
+            unit="animals"
+            icon={<Pets sx={{ fontSize: 30, color: theme.palette.success.main }} />}
+            color={theme.palette.success.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Sales"
+            value={data.totalSales}
+            unit="₹"
+            icon={<AttachMoney sx={{ fontSize: 30, color: theme.palette.info.main }} />}
+            color={theme.palette.info.main}
+          />
         </Grid>
 
-        {/* Products Statistics */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Products Overview
-              </Typography>
-              {Array.isArray(data.products) && data.products.length > 0 ? (
-                data.products.map((product, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 1,
+        {/* Charts */}
+        <Grid item xs={12} md={8}>
+          <ChartContainer>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+              Production Trends
+            </Typography>
+            <Box sx={{ width: '100%', height: 400 }}>
+              <ResponsiveContainer>
+                <LineChart data={data.productionData}>
+                  <defs>
+                    <linearGradient id="milk" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="eggs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={theme.palette.secondary.main} stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor={theme.palette.secondary.main} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      borderRadius: 8,
+                      border: 'none',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
                     }}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="milk" 
+                    stroke={theme.palette.primary.main}
+                    strokeWidth={3}
+                    dot={{ stroke: theme.palette.primary.main, strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 8 }}
+                    name="Milk (L)"
+                    fill="url(#milk)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="eggs" 
+                    stroke={theme.palette.secondary.main}
+                    strokeWidth={3}
+                    dot={{ stroke: theme.palette.secondary.main, strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 8 }}
+                    name="Eggs (dozens)"
+                    fill="url(#eggs)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartContainer>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <ChartContainer>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+              Sales Distribution
+            </Typography>
+            <Box sx={{ width: '100%', height: 400 }}>
+              <ResponsiveContainer>
+                <RePieChart>
+                  <Pie
+                    data={[
+                      { name: 'Milk', value: data.totalMilk * 60 },
+                      { name: 'Eggs', value: data.totalEggs * 7 },
+                      { name: 'Livestock', value: data.totalSheep * 1000 }
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
                   >
-                    <Typography>{product.type}</Typography>
-                    <Typography>
-                      {product.quantity || 0} {product.unit}
-                    </Typography>
-                  </Box>
-                ))
-              ) : (
-                <Typography color="text.secondary">No products data available</Typography>
-              )}
-            </CardContent>
-          </Card>
+                    {[
+                      theme.palette.primary.main,
+                      theme.palette.secondary.main,
+                      theme.palette.success.main
+                    ].map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      borderRadius: 8,
+                      border: 'none',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Legend />
+                </RePieChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartContainer>
         </Grid>
       </Grid>
     </Box>

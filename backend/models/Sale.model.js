@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const invoiceSchema = new mongoose.Schema({
+const saleSchema = new mongoose.Schema({
     invoiceNumber: {
         type: String,
         required: true,
@@ -14,13 +14,12 @@ const invoiceSchema = new mongoose.Schema({
     items: [{
         itemId: {
             type: mongoose.Schema.Types.ObjectId,
-            required: true,
             refPath: 'items.itemType'
         },
         itemType: {
             type: String,
-            required: true,
-            enum: ['Product', 'Livestock']
+            enum: ['Product', 'Livestock'],
+            required: true
         },
         name: String,
         quantity: Number,
@@ -33,15 +32,39 @@ const invoiceSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    paidAmount: {
+        type: Number,
+        default: 0
+    },
     remainingBalance: {
         type: Number,
+        required: true
+    },
+    pdfPath: {
+        type: String
+    },
+    whatsappSent: {
+        type: Boolean,
+        default: false
+    },
+    whatsappError: {
+        type: String
+    },
+    whatsappSentAt: {
+        type: Date
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     }
 }, {
     timestamps: true
 });
 
-// Add index for invoice number
-invoiceSchema.index({ invoiceNumber: 1 }, { unique: true });
+// Add indexes for better query performance
+saleSchema.index({ invoiceNumber: 1 });
+saleSchema.index({ customer: 1 });
+saleSchema.index({ createdAt: 1 });
 
-module.exports = mongoose.model('Invoice', invoiceSchema); 
+module.exports = mongoose.models.Sales || mongoose.model('Sales', saleSchema);

@@ -3,7 +3,7 @@ const Customer = require('../models/Customer');
 const CustomerTransaction = require('../models/CustomerTransaction');
 const DayBook = require('../models/DayBook');
 const Product = require('../models/Product');
-const Invoice = require('../models/Invoice');
+const Sale = require('../models/Sale.model');
 
 exports.addTransaction = async (req, res) => {
   try {
@@ -67,11 +67,7 @@ exports.addTransaction = async (req, res) => {
     customerTransaction.transactions.push(newCustomerTransaction);
     customerTransaction.currentBalance = currentBalance;
 
-    // Add reference to customer's transaction list
-    customer.transactions.push({
-      transactionId: customerTransaction._id,
-      date: newCustomerTransaction.date
-    });
+    
 
     // Add transaction to daybook
     let dayBook = await DayBook.findOne({ date: formattedDate });
@@ -254,8 +250,9 @@ exports.getDayBook = async (req, res) => {
     const endDate = new Date(formattedDate);
     endDate.setHours(23, 59, 59, 999);
 
-    // Get daybook data
-    const dayBook = await DayBook.findOne({ date: formattedDate });
+    // Get daybook data with populated customer info
+    const dayBook = await DayBook.findOne({ date: formattedDate })
+      .populate('transactions.customerId', 'name');
 
     // Calculate payments by mode
     const payments = {
@@ -275,7 +272,7 @@ exports.getDayBook = async (req, res) => {
     }
 
     // Get total sales amount from invoices for the date
-    const invoices = await Invoice.find({
+    const invoices = await Sale.find({
       createdAt: {
         $gte: formattedDate,
         $lte: endDate

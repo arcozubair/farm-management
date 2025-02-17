@@ -30,7 +30,7 @@ import * as productService from '../services/productService';
 import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
 import useResponsiveness from '../hooks/useResponsive';
-import * as invoiceService from '../services/invoiceService';
+import * as invoiceService from '../services/saleServices';
 import { useSnackbar } from 'notistack';
 import * as companySettingsService from '../services/companySettingsService';
 
@@ -138,6 +138,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         if (response.success) {
           setInvoiceNumber(response.data.nextInvoiceNumber);
         }
+        console.log(response.data.nextInvoiceNumber);
       } catch (error) {
         console.error('Error fetching invoice number:', error);
         enqueueSnackbar('Failed to fetch invoice number', { variant: 'error' });
@@ -299,20 +300,29 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         unit: item.weight > 0 ? 'kg' : (item.name.toLowerCase().includes('milk') ? 'L' : 'pcs')
       }));
 
-      console.log('Invoice items before sending:', invoiceItems);
-
       const invoiceData = {
         customer: customer._id,
         items: invoiceItems,
         grandTotal: Number(calculateGrandTotal()),
-        paidAmount: Number(calculateGrandTotal()),
-        remainingBalance: 0,
-        invoiceDate: invoiceDate
+        invoiceDate: invoiceDate,
+        whatsappNotification: customer.whatsappNotification
       };
 
       const response = await invoiceService.createInvoice(invoiceData);
-      enqueueSnackbar('Invoice created successfully', { variant: 'success' });
-      onClose();
+      
+      if (response.success) {
+        if (response.invoice?.whatsappSent) {
+          enqueueSnackbar('Invoice created and sent via WhatsApp', { variant: 'success' });
+        } else {
+          enqueueSnackbar('Invoice created successfully', { variant: 'success' });
+          if (response.invoice?.whatsappError) {
+            enqueueSnackbar(`WhatsApp notification failed: ${response.invoice.whatsappError}`, { variant: 'warning' });
+          }
+        }
+        onClose();
+      } else {
+        throw new Error(response.message || 'Failed to create invoice');
+      }
     } catch (error) {
       console.error('Invoice creation error:', error);
       setError(error.message || 'Failed to create invoice');

@@ -132,27 +132,50 @@ const Customers = () => {
 
   const handleSubmit = async () => {
     try {
-      const currentBalance = formData.balanceType === 'credit' 
-        ? Number(formData.openingBalance) 
-        : -Number(formData.openingBalance);
+      // For new customers, calculate the initial current balance
+      if (!selectedCustomer) {
+        const currentBalance = formData.balanceType === 'credit' 
+          ? Number(formData.openingBalance) 
+          : -Number(formData.openingBalance);
 
-      const customerData = {
-        ...formData,
-        currentBalance,
-        openingBalance: currentBalance
-      };
+        const customerData = {
+          ...formData,
+          currentBalance,
+          openingBalance: currentBalance
+        };
+        
+        const response = await customerService.addCustomer(customerData);
+        if (response.success) {
+          enqueueSnackbar('Customer added successfully', { variant: 'success' });
+          handleClose();
+          fetchCustomers();
+        }
+      } else {
+        // For existing customers, only send modified fields
+        const updatedFields = {};
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== selectedCustomer[key]) {
+            updatedFields[key] = formData[key];
+          }
+        });
 
-      const response = selectedCustomer
-        ? await customerService.updateCustomer(selectedCustomer._id, customerData)
-        : await customerService.addCustomer(customerData);
+        // Only update balance if opening balance or type changed
+        if (updatedFields.openingBalance !== undefined || updatedFields.balanceType !== undefined) {
+          const newBalance = formData.balanceType === 'credit' 
+            ? Number(formData.openingBalance) 
+            : -Number(formData.openingBalance);
+          
+          // Calculate the difference from the current balance
+          const balanceDifference = newBalance - selectedCustomer.currentBalance;
+          updatedFields.currentBalance = selectedCustomer.currentBalance + balanceDifference;
+        }
 
-      if (response.success) {
-        enqueueSnackbar(
-          `Customer ${selectedCustomer ? 'updated' : 'added'} successfully`,
-          { variant: 'success' }
-        );
-        handleClose();
-        fetchCustomers();
+        const response = await customerService.updateCustomer(selectedCustomer._id, updatedFields);
+        if (response.success) {
+          enqueueSnackbar('Customer updated successfully', { variant: 'success' });
+          handleClose();
+          fetchCustomers();
+        }
       }
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to save customer', { variant: 'error' });
@@ -166,8 +189,8 @@ const Customers = () => {
       contactNumber: customer.contactNumber,
       address: customer.address,
       whatsappNotification: customer.whatsappNotification || false,
-      openingBalance: customer.openingBalance || 0,
-      balanceType: customer.balanceType || 'credit',
+      openingBalance: Math.abs(customer.currentBalance), // Show current balance instead
+      balanceType: customer.currentBalance >= 0 ? 'credit' : 'debit', // Determine type from current balance
       currentBalance: customer.currentBalance || 0
     });
     setOpenDialog(true);
@@ -451,7 +474,7 @@ const Customers = () => {
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Opening Balance
+                Current Balance
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={8}>
@@ -459,10 +482,11 @@ const Customers = () => {
                     fullWidth
                     type="number"
                     label="Amount"
-                    value={formData.openingBalance}
+                    value={Math.abs(formData.currentBalance)}
                     onChange={(e) => setFormData({ 
                       ...formData, 
-                      openingBalance: e.target.value 
+                      currentBalance: e.target.value,
+                      openingBalance: e.target.value // Keep openingBalance in sync for new customers
                     })}
                   />
                 </Grid>
@@ -472,10 +496,16 @@ const Customers = () => {
                     <Select
                       value={formData.balanceType}
                       label="Type"
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        balanceType: e.target.value 
-                      })}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          balanceType: newType,
+                          currentBalance: newType === 'credit' ? 
+                            Math.abs(formData.currentBalance) : 
+                            -Math.abs(formData.currentBalance)
+                        });
+                      }}
                     >
                       <MenuItem value="credit">Credit</MenuItem>
                       <MenuItem value="debit">Debit</MenuItem>

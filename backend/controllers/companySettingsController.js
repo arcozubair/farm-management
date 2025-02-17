@@ -31,6 +31,8 @@ exports.getNextInvoiceNumber = async (req, res) => {
             throw new Error('Company settings not found');
         }
 
+        console.log("ssss",settings);
+
         const nextInvoiceNumber = settings.numberSequences.lastInvoiceNumber + 1;
         const prefix = settings.prefixes.invoicePrefix;
         const year = new Date().getFullYear().toString().slice(-2);

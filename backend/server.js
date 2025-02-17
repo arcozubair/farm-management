@@ -6,11 +6,11 @@ const config = require('./config/config');
 const errorHandler = require('./middleware/error');
 const productRoutes = require('./routes/productRoutes');
 const customerRoutes = require('./routes/customerRoutes');
-const { initializeProducts } = require('./controllers/productController');
-const invoiceRoutes = require('./routes/invoiceRoutes');
+const saleRoutes = require('./routes/saleRoutes');
 const companySettingsRoutes = require('./routes/companySettingsRoutes');
 const path = require('path');
-// Initialize express
+const connectDB = require('./database/db.config.js');
+
 const app = express();
 
 // Middleware
@@ -41,14 +41,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection
-mongoose.connect(config.MONGODB_URI + '?replicaSet=rs0')
-  .then(async () => {
-    console.log('MongoDB Connected...');
-    // Initialize products after DB connection
-    await initializeProducts();
-  })
-  .catch(err => console.log('MongoDB Connection Error:', err));
+// Connect to the database
+connectDB();
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -56,9 +50,8 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/customers', customerRoutes);
 app.use('/api/livestock', require('./routes/livestock'));
 app.use('/api/products', productRoutes);
-app.use('/api/sales', require('./routes/sales'));
 app.use('/api/daybook', require("./routes/dayBookRoutes"));
-app.use('/api/invoices', invoiceRoutes);
+app.use('/api/invoices', saleRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
 
 // Error handling middleware
@@ -71,7 +64,9 @@ app.use((err, req, res, next) => {
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
-// Add this near your other middleware configurations
+
+//serve static files
+
 app.use('/invoices', express.static(path.join(__dirname, 'public/invoices')));
 // Handle unhandled routes
 app.use('*', (req, res) => {
@@ -92,4 +87,4 @@ process.on('unhandledRejection', (err) => {
   console.log('Unhandled Rejection:', err);
   // Close server & exit process
   server.close(() => process.exit(1));
-}); 
+});

@@ -202,7 +202,7 @@ const CustomerLedgerSummary = ({ open, onClose, summaryData, loading }) => {
             >
               <StatItem 
                 label="Total Invoices"
-                value={invoices.totalInvoices}
+                value={invoices.count}
               />
               <StatItem 
                 label="Total Amount"

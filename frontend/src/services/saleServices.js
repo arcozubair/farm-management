@@ -1,36 +1,24 @@
 import api from './api';
 
-const BASE_URL = '/invoices';
+const BASE_URL = '/sales';
 
 // Create new invoice
-export const createInvoice = async (invoiceData) => {
+export const createSale = async (saleData) => {
   try {
-    console.log('Sending invoice data to API:', invoiceData);
-    const response = await api.post(BASE_URL, invoiceData);
-    console.log('API response:', response);
+    const response = await api.post('/sales', saleData);
     return response.data;
   } catch (error) {
-    console.error('API error:', error);
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('Error response:', error.response.data);
-      console.error('Error status:', error.response.status);
-      throw error.response.data;
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('No response received:', error.request);
-      throw { message: 'No response from server. Please try again.' };
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('Error setting up request:', error.message);
-      throw { message: 'Failed to send request. Please try again.' };
-    }
+    // Simple error handling
+    throw {
+      message: error.response?.data?.message || error.message || 'Failed to create invoice',
+      status: error.response?.status,
+      data: error.response?.data
+    };
   }
 };
 
 // Get all invoices with optional filters
-export const getInvoices = async (params) => {
+export const getSales = async (params) => {
   try {
     const response = await api.get(BASE_URL, { params });
     return response.data;
@@ -40,17 +28,21 @@ export const getInvoices = async (params) => {
 };
 
 // Get single invoice by ID
-export const getInvoiceById = async (id) => {
+export const getsale = async (id) => {
   try {
-    const response = await api.get(`${BASE_URL}/${id}`);
+    const response = await api.get(`/invoices/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch invoice' };
+    throw {
+      message: error.response?.data?.message || error.message || 'Failed to fetch invoice',
+      status: error.response?.status,
+      data: error.response?.data
+    };
   }
 };
 
 // Update invoice payment
-export const updateInvoicePayment = async (id, paymentData) => {
+export const updateSalePayment = async (id, paymentData) => {
   try {
     const response = await api.put(`${BASE_URL}/${id}/payment`, paymentData);
     return response.data;
@@ -60,7 +52,7 @@ export const updateInvoicePayment = async (id, paymentData) => {
 };
 
 // Get invoices by customer
-export const getInvoicesByCustomer = async (customerId) => {
+export const getsalesByCustomer = async (customerId) => {
   try {
     const response = await api.get(`${BASE_URL}/customer/${customerId}`);
     return response.data;
@@ -70,7 +62,7 @@ export const getInvoicesByCustomer = async (customerId) => {
 };
 
 // Delete invoice (admin only)
-export const deleteInvoice = async (id) => {
+export const deleteSale = async (id) => {
   try {
     const response = await api.delete(`${BASE_URL}/${id}`);
     return response.data;
@@ -80,7 +72,7 @@ export const deleteInvoice = async (id) => {
 };
 
 // Get invoice statistics
-export const getInvoiceStats = async (params) => {
+export const getSaleStats = async (params) => {
   try {
     const response = await api.get(`${BASE_URL}/stats`, { params });
     return response.data;
@@ -90,7 +82,7 @@ export const getInvoiceStats = async (params) => {
 };
 
 // Generate invoice PDF
-export const generateInvoicePDF = async (id) => {
+export const generateSalePDF = async (id) => {
   try {
     const response = await api.get(`${BASE_URL}/${id}/pdf`, {
       responseType: 'blob'
@@ -102,7 +94,7 @@ export const generateInvoicePDF = async (id) => {
 };
 
 // Search invoices
-export const searchInvoices = async (query) => {
+export const searchSales = async (query) => {
   try {
     const response = await api.get(`${BASE_URL}/search`, { params: { q: query } });
     return response.data;
@@ -111,11 +103,20 @@ export const searchInvoices = async (query) => {
   }
 };
 
-export const getInvoicesByDate = async (date) => {
+export const getSalesByDate = async (date) => {
   try {
     const response = await api.get(`${BASE_URL}/by-date/${date}`);
     return response.data;
   } catch (error) {
     throw error;
+  }
+};
+
+export const createGroupSales = async (invoiceData) => {
+  try {
+    const response = await api.post(`${BASE_URL}/group`, invoiceData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to create group invoices' };
   }
 }; 

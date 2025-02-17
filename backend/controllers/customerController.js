@@ -1,6 +1,6 @@
 const Customer = require('../models/Customer');
 const CustomerTransaction = require('../models/CustomerTransaction');
-const Invoice = require('../models/Invoice');
+const Sale = require('../models/Sale.model');
 
 // Get all customers
 exports.getCustomers = async (req, res) => {
@@ -133,7 +133,7 @@ exports.deleteCustomer = async (req, res) => {
   }
 };
 
-// Create invoice for customer
+// Create Sale for customer
 exports.createInvoice = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -144,18 +144,18 @@ exports.createInvoice = async (req, res) => {
       });
     }
 
-    const invoice = await Invoice.create({
+    const Sale = await Sale.create({
       ...req.body,
       customer: req.params.id,
       createdBy: req.user._id
     });
 
     // Update customer's invoices array
-    await customer.addInvoice(invoice._id);
+    await customer.addInvoice(Sale._id);
 
     res.status(201).json({
       success: true,
-      data: invoice
+      data: Sale
     });
   } catch (error) {
     res.status(500).json({
@@ -171,9 +171,14 @@ exports.getCustomerLedger = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     // If no dates provided, default to current month
-    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = endDate
+      ? new Date(endDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
 
+    // Verify the customer exists and belongs to the logged-in user
     const customer = await Customer.findOne({
       _id: id,
       createdBy: req.user._id
@@ -185,55 +190,72 @@ exports.getCustomerLedger = async (req, res) => {
         message: 'Customer not found'
       });
     }
+    const customerId = customer._id;
 
-    // Get transactions with date filter
-    const transactions = await CustomerTransaction.find({
-      customerId: customer._id,
-      'transactions.date': {
-        $gte: start,
-        $lte: end
-      }
-    }).select('transactions currentBalance createdAt');
+    // Aggregation using $unionWith
+    const ledgerDetails = await Sale.aggregate([
+      // 1. Match and project Sales records for the customer within the date range
+      {
+        $match: {
+          customer: customerId,
+          createdAt: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          // Use invoiceDate if available; otherwise, fallback to createdAt
+          date: { $ifNull: ["$invoiceDate", "$createdAt"] },
+          type: { $literal: "Sale" },
+          description: { $concat: ["Sale #", "$invoiceNumber"] },
+          amount: "$grandTotal", // Debit entry (positive)
+          remainingBalance: "$remainingBalance",
+          transactionMode: { $literal: null },
+          createdAt: { $ifNull: ["$invoiceDate", "$createdAt"] }
+        }
+      },
+      // 2. Use $unionWith to combine with Customer Transactions
+      {
+        $unionWith: {
+          coll: "customertransactions", // Ensure this matches your collection name
+          pipeline: [
+            {
+              $match: {
+                customerId: customerId
+              }
+            },
+            // Unwind transactions so that each individual transaction is processed
+            { $unwind: "$transactions" },
+            {
+              $match: {
+                "transactions.date": { $gte: start, $lte: end }
+              }
+            },
+            {
+              $project: {
+                _id: 0, // Exclude the original _id
+                date: "$transactions.date",
+                type: { $literal: "Transaction" },
+                description: {
+                  $concat: [
+                    "Payment - Receipt #",
+                    { $toString: "$transactions.transactionNumber" }
+                  ]
+                },
+                // Represent payments as negative amounts
+                amount: { $multiply: [-1, "$transactions.amount"] },
+                transactionMode: "$transactions.modeOfPayment",
+                createdAt: "$transactions.date"
+              }
+            }
+          ]
+        }
+      },
+      // 3. Sort the combined entries by date in ascending order
+      { $sort: { date: 1 } }
+    ]);
 
-    // Get invoices with date filter
-    const invoices = await Invoice.find({
-      customer: customer._id,
-      createdAt: {
-        $gte: start,
-        $lte: end
-      }
-    }).select('invoiceNumber grandTotal remainingBalance createdAt');
-
-    // Format transactions
-    const formattedTransactions = transactions.flatMap(trans => 
-      (trans.transactions || []).map(t => ({
-        date: t.date,
-        type: "Transaction",
-        description: `Transaction - Receipt #${t.transactionNumber}`,
-        amount: -t.amount,
-        transactionMode: t.modeOfPayment,
-        createdAt: trans.createdAt,
-        balanceAfterEntry: trans.currentBalance
-      }))
-    );
-
-    // Format invoices
-    const formattedInvoices = invoices.map(invoice => ({
-      date: invoice.createdAt,
-      type: "Invoice",
-      description: `Invoice #${invoice.invoiceNumber}`,
-      amount: invoice.grandTotal,
-      remainingBalance: invoice.remainingBalance,
-      transactionMode: null,
-      createdAt: invoice.createdAt,
-      balanceAfterEntry: invoice.remainingBalance
-    }));
-
-    // Combine and sort all entries
-    const ledgerDetails = [...formattedTransactions, ...formattedInvoices]
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // Calculate running balance
+    // Calculate the running balance starting with the customer's opening balance
     let runningBalance = customer.openingBalance;
     ledgerDetails.forEach(entry => {
       runningBalance += entry.amount;
@@ -253,9 +275,8 @@ exports.getCustomerLedger = async (req, res) => {
         ledgerDetails
       }
     });
-
   } catch (error) {
-    console.error('Error in getCustomerLedger:', error);
+    console.error("Error in getCustomerLedger:", error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -263,67 +284,43 @@ exports.getCustomerLedger = async (req, res) => {
   }
 };
 
+
 exports.getCustomerLedgerSummary = async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 
+    // Default period: Current month
     const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = endDate ? new Date(endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
 
-    const customer = await Customer.findOne({
-      _id: id,
-      createdBy: req.user._id
-    });
-
+    const customer = await Customer.findOne({ _id: id, createdBy: req.user._id });
     if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer not found'
-      });
+      return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
-    // Get invoices with populated items
-    const invoices = await Invoice.find({
+    // Fetch invoices within the selected period
+    const invoices = await Sale.find({
       customer: customer._id,
-      createdAt: {
-        $gte: start,
-        $lte: end
-      }
+      createdAt: { $gte: start, $lte: end }
     }).populate({
       path: 'items.itemId',
       select: 'name unit category'
     });
+    // Calculate total Sale amount within the period
+    const totalInvoiceAmount = invoices.reduce((sum, Sale) => sum + (Sale.grandTotal || 0), 0);
 
-    // Initialize summaries
-    const productSummary = {
-      totalAmount: 0,
-      products: {
-        milk: { quantity: 0, amount: 0, unit: 'L' },
-        eggs: { quantity: 0, amount: 0, unit: 'pcs' },
-        other: { quantity: 0, amount: 0, unit: 'units' }
-      }
-    };
+    // Summarize products and livestock
+    const productSummary = { totalAmount: 0, products: { milk: { quantity: 0, amount: 0, unit: 'L' }, eggs: { quantity: 0, amount: 0, unit: 'pcs' }, other: { quantity: 0, amount: 0, unit: 'units' } } };
+    const livestockSummary = { totalAmount: 0, items: {} };
 
-    const livestockSummary = {
-      totalAmount: 0,
-      items: {}
-    };
-
-    // Process invoices
-    invoices.forEach(invoice => {
-      invoice.items.forEach(item => {
-        // Skip if item or itemId is not properly populated
+    invoices.forEach(Sale => {
+      Sale.items.forEach(item => {
         if (!item || !item.itemId) return;
-
-        const product = item.itemId;
         const productName = item.name ? item.name.toLowerCase() : '';
-
-        console.log("ssss",item.name);
 
         if (item.itemType === 'Product') {
           productSummary.totalAmount += item.total || 0;
-
           if (productName.includes('milk')) {
             productSummary.products.milk.quantity += item.quantity || 0;
             productSummary.products.milk.amount += item.total || 0;
@@ -336,15 +333,9 @@ exports.getCustomerLedgerSummary = async (req, res) => {
           }
         } else if (item.itemType === 'Livestock') {
           livestockSummary.totalAmount += item.total || 0;
-
-          const productId = product._id.toString();
+          const productId = item.itemId._id.toString();
           if (!livestockSummary.items[productId]) {
-            livestockSummary.items[productId] = {
-              name: item.name || 'Unknown',
-              quantity: 0,
-              amount: 0,
-              unit: item.unit || 'kg'
-            };
+            livestockSummary.items[productId] = { name: item.name || 'Unknown', quantity: 0, amount: 0, unit: item.unit || 'kg' };
           }
           livestockSummary.items[productId].quantity += item.quantity || 0;
           livestockSummary.items[productId].amount += item.total || 0;
@@ -352,20 +343,16 @@ exports.getCustomerLedgerSummary = async (req, res) => {
       });
     });
 
-    // Get transactions
+    // Fetch transactions within the same period
     const transactions = await CustomerTransaction.find({
       customerId: customer._id,
-      'transactions.date': {
-        $gte: start,
-        $lte: end
-      }
+      'transactions.date': { $gte: start, $lte: end }
     });
 
     // Calculate transaction summary
     const transactionSummary = {
       totalTransactions: transactions.reduce((sum, trans) => sum + (trans.transactions?.length || 0), 0),
-      totalAmount: transactions.reduce((sum, trans) => 
-        sum + (trans.transactions || []).reduce((tSum, t) => tSum + (t.amount || 0), 0), 0),
+      totalAmount: transactions.reduce((sum, trans) => sum + (trans.transactions || []).reduce((tSum, t) => tSum + (t.amount || 0), 0), 0),
       byMode: transactions.reduce((modes, trans) => {
         (trans.transactions || []).forEach(t => {
           if (t.modeOfPayment) {
@@ -379,18 +366,15 @@ exports.getCustomerLedgerSummary = async (req, res) => {
     res.json({
       success: true,
       data: {
-        period: {
-          from: start,
-          to: end
-        },
-        customerInfo: {
-          name: customer.name || '',
-          contactNumber: customer.contactNumber || '',
-          address: customer.address || ''
-        },
+        period: { from: start, to: end },
+        customerInfo: { name: customer.name || '', contactNumber: customer.contactNumber || '', address: customer.address || '' },
         transactions: transactionSummary,
         products: productSummary,
         livestock: livestockSummary,
+        invoices: {
+          count: invoices.length,
+          totalAmount: totalInvoiceAmount
+        },
         balances: {
           opening: customer.openingBalance || 0,
           current: customer.currentBalance || 0,
@@ -401,10 +385,7 @@ exports.getCustomerLedgerSummary = async (req, res) => {
 
   } catch (error) {
     console.error('Error in getCustomerLedgerSummary:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 

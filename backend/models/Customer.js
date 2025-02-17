@@ -25,27 +25,6 @@ const customerSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
-  transactions: [{
-    transactionId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CustomerTransaction'
-    },
-    date: {
-      type: Date,
-      required: true
-    }
-  }],
-  invoices: [{
-    invoiceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Invoice',
-      required: true
-    },
-    date: {
-      type: Date,
-      default: Date.now
-    }
-  }],
   currentBalance: {
     type: Number,
     required: true,
