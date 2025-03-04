@@ -21,7 +21,8 @@ import {
   Alert,
   CircularProgress,
   Grid,
-  tableCellClasses
+  tableCellClasses,
+  MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -30,9 +31,10 @@ import * as productService from '../services/productService';
 import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
 import useResponsiveness from '../hooks/useResponsive';
-import * as invoiceService from '../services/saleServices';
+import * as saleServices from '../services/saleServices';
 import { useSnackbar } from 'notistack';
 import * as companySettingsService from '../services/companySettingsService';
+import accountService from '../services/accountService';
 
 
 // Styled components for better appearance
@@ -57,13 +59,15 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 
 const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const [items, setItems] = useState([]);
-  const [stockItems, setStockItems] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [livestock, setLivestock] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
   const [error, setError] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saleNumber, setSaleNumber] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(new Date());
   const { isMobile, isTablet } = useResponsiveness();
+  const [itemType, setItemType] = useState('product'); // 'product' or 'livestock'
 
   const [currentItem, setCurrentItem] = useState({
     id: '',
@@ -85,70 +89,131 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
 
   const { enqueueSnackbar } = useSnackbar();
 
+  const [paymentType, setPaymentType] = useState('credit');
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [previousBalance, setPreviousBalance] = useState(0);
+
   useEffect(() => {
-    const fetchStock = async () => {
+    const fetchItems = async () => {
       setLoading(true);
       setError('');
       try {
-        const [productsResponse, livestockResponse] = await Promise.all([
+        const [productsRes, livestockRes] = await Promise.all([
           productService.getAllProducts(),
           livestockService.getAllLivestock()
         ]);
 
-        const productsArray = productsResponse?.data || [];
-        const livestockArray = livestockResponse?.data?.data || [];
+        // Handle products
+        const productsData = Array.isArray(productsRes) ? productsRes : productsRes?.data || [];
+        setProducts(productsData.map(p => ({
+          ...p,
+          name: p.name,
+          price: p.price || 0,
+          type: 'product',
+          remainingStock: p.currentStock,
+          unit: p.unit || 'pcs'
+        })));
+
+        // Handle livestock - adjust based on your API response structure
+        const livestockData = livestockRes?.data?.data || livestockRes || [];
+        console.log('Raw livestock data:', livestockData);
         
-        const combinedStock = [
-          ...productsArray.map(p => ({ 
-            ...p,
-            name: p.type,
-            price: p.price || 0,
-            type: 'product',
-            remainingStock: p.currentStock,
-            unit: p.type.toLowerCase().includes('milk') ? 'L' : 'pcs'
-          })),
-          ...livestockArray.map(l => ({ 
-            ...l,
-            name: `${l.category} - ${l.type}`,
-            price: l.price || 0,
-            type: 'livestock',
-            remainingStock: l.quantity,
-            unit: l.weight > 0 ? 'kg' : 'pcs'
-          }))
-        ];
-        
-        setStockItems(combinedStock);
+        setLivestock(livestockData.map(l => ({
+          ...l,
+          _id: l._id,
+          name: `${l.category} - ${l.type}`,
+          price: l.price || 0,
+          type: 'livestock',
+          remainingStock: l.quantity || 0,
+          unit: 'pcs'
+        })));
+
       } catch (error) {
-        setError('Failed to fetch stock items. Please try again.');
-        console.error('Error fetching stock:', error);
+        console.error('Error fetching items:', error);
+        setError('Failed to fetch items. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     if (open) {
-      fetchStock();
+      fetchItems();
     }
   }, [open]);
 
   useEffect(() => {
-    const fetchInvoiceNumber = async () => {
+    const fetchSaleNumber = async () => {
       try {
-        const response = await companySettingsService.getNextInvoiceNumber();
+        const response = await companySettingsService.getNextSaleNumber();
         if (response.success) {
-          setInvoiceNumber(response.data.nextInvoiceNumber);
+          setSaleNumber(response.data.nextSaleNumber);
         }
-        console.log(response.data.nextInvoiceNumber);
+        console.log(response.data.nextSaleNumber);
       } catch (error) {
-        console.error('Error fetching invoice number:', error);
-        enqueueSnackbar('Failed to fetch invoice number', { variant: 'error' });
+        console.error('Error fetching sale number:', error);
+        enqueueSnackbar('Failed to fetch sale number', { variant: 'error' });
       }
     };
 
     if (open) {
-      fetchInvoiceNumber();
+      fetchSaleNumber();
     }
   }, [open]);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (paymentType === 'payment') {
+        try {
+          // First fetch Cash accounts
+          const cashResponse = await accountService.getAccounts({
+            accountType: 'Cash'
+          });
+          
+          // Then fetch Bank accounts
+          const bankResponse = await accountService.getAccounts({
+            accountType: 'Bank'
+          });
+          
+          // Combine both results
+          const combinedAccounts = [
+            ...(cashResponse.data || []),
+            ...(bankResponse.data || [])
+          ];
+
+          if (combinedAccounts.length === 0) {
+            enqueueSnackbar('No cash or bank accounts found. Please create them first.', { 
+              variant: 'warning' 
+            });
+            return;
+          }
+          
+          setAccounts(combinedAccounts);
+        } catch (error) {
+          console.error('Error fetching accounts:', error);
+          enqueueSnackbar('Failed to fetch accounts', { variant: 'error' });
+        }
+      }
+    };
+
+    fetchAccounts();
+  }, [paymentType]);
+
+  useEffect(() => {
+    const fetchCustomerBalance = async () => {
+      if (customer?._id) {
+        try {
+          const response = await accountService.getAccountBalance(customer._id);
+          setPreviousBalance(response.data.balance || 0);
+        } catch (error) {
+          console.error('Error fetching customer balance:', error);
+        }
+      }
+    };
+
+    fetchCustomerBalance();
+  }, [customer]);
 
   // Add useEffect to focus on input when dialog opens
   useEffect(() => {
@@ -284,31 +349,44 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     return items.reduce((sum, item) => sum + parseFloat(item.total), 0).toFixed(2);
   };
 
-  const handleCreateInvoice = async () => {
-    setLoading(true);
-    setError('');
-
+  const handleSubmit = async () => {
     try {
-      const invoiceItems = items.map(item => ({
-        itemId: item.productId,
-        itemType: item.type === 'product' ? 'Product' : 'Livestock',
-        name: item.name,
-        quantity: Number(item.quantity),
-        price: Number(item.rate),
-        total: Number(item.total),
-        weight: Number(item.weight || 0),
-        unit: item.weight > 0 ? 'kg' : (item.name.toLowerCase().includes('milk') ? 'L' : 'pcs')
-      }));
+      if (paymentType === 'payment' && (!selectedAccount || paidAmount <= 0)) {
+        enqueueSnackbar('Please fill in all payment details', { variant: 'error' });
+        return;
+      }
 
-      const invoiceData = {
+      const grandTotal = Number(calculateGrandTotal());
+      const remainingBalance = paymentType === 'payment' ? 
+        Math.max(0, grandTotal - paidAmount) : 
+        grandTotal;
+
+      const saleData = {
+        saleNumber: saleNumber,
+        date: invoiceDate,
         customer: customer._id,
-        items: invoiceItems,
-        grandTotal: Number(calculateGrandTotal()),
-        invoiceDate: invoiceDate,
-        whatsappNotification: customer.whatsappNotification
+        items: items.map(item => ({
+          itemId: item.productId,
+          itemType: item.type === 'product' ? 'Product' : 'Livestock',
+          name: item.name,
+          quantity: Number(item.quantity),
+          price: Number(item.rate),
+          total: Number(item.total),
+          weight: Number(item.weight || 0),
+          unit: item.weight > 0 ? 'kg' : (item.name.toLowerCase().includes('milk') ? 'L' : 'pcs')
+        })),
+        grandTotal: grandTotal,
+        paidAmount: paymentType === 'payment' ? paidAmount : 0,
+        remainingBalance: remainingBalance,
+        whatsappNotification: true,
+        paymentType,
+        paymentDetails: paymentType === 'payment' ? {
+          accountId: selectedAccount,
+          amount: paidAmount
+        } : null
       };
 
-      const response = await invoiceService.createInvoice(invoiceData);
+      const response = await saleServices.createSale(saleData);
       
       if (response.success) {
         if (response.invoice?.whatsappSent) {
@@ -327,10 +405,214 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       console.error('Invoice creation error:', error);
       setError(error.message || 'Failed to create invoice');
       enqueueSnackbar(error.message || 'Failed to create invoice', { variant: 'error' });
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Update customer details display
+  const CustomerDetailsSection = () => (
+    <>
+      <Grid item xs={12}>
+        <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Customer Details</Typography>
+      </Grid>
+      <Grid item xs={12} md={6}>
+        <TextField
+          fullWidth
+          label="Customer Name"
+          value={customer?.customerName || ''}
+          disabled
+          variant="outlined"
+          InputProps={{
+            readOnly: true,
+            sx: { bgcolor: 'action.hover' }
+          }}
+        />
+      </Grid>
+      <Grid item xs={12} md={6}>
+        <TextField
+          fullWidth
+          label="Contact Number"
+          value={customer?.contactNo || ''}
+          disabled
+          variant="outlined"
+          InputProps={{
+            readOnly: true,
+            sx: { bgcolor: 'action.hover' }
+          }}
+        />
+      </Grid>
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          label="Address"
+          value={customer?.address || ''}
+          disabled
+          variant="outlined"
+          multiline
+          rows={2}
+          InputProps={{
+            readOnly: true,
+            sx: { bgcolor: 'action.hover' }
+          }}
+        />
+      </Grid>
+    </>
+  );
+
+  // Add this section to your render method, before the items table
+  const renderItemSelection = () => (
+    <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+      <Grid container spacing={2}>
+        {/* Fixed width container for type and item selection */}
+        <Grid item xs={12}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                label="Item Type"
+                value={itemType}
+                onChange={(e) => {
+                  setItemType(e.target.value);
+                  setSelectedStock(null);
+                  setCurrentItem(prev => ({
+                    ...prev,
+                    id: '',
+                    name: '',
+                    quantity: 1,
+                    weight: 0,
+                    rate: 0,
+                    total: 0,
+                    type: '',
+                    remainingStock: 0,
+                    unit: ''
+                  }));
+                }}
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="product">Product</MenuItem>
+                <MenuItem value="livestock">Livestock</MenuItem>
+              </TextField>
+            </Grid>
+            
+            <Grid item xs={12} sm={8}>
+              <Autocomplete
+                ref={itemInputRef}
+                options={itemType === 'product' ? products : livestock}
+                getOptionLabel={(option) => option.name}
+                value={selectedStock}
+                onChange={handleItemSelect}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Item"
+                    size={isMobile ? "small" : "medium"}
+                    error={Boolean(error)}
+                    helperText={error}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loading ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    <Box>
+                      <Typography variant="body1">
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Stock: {option.remainingStock} {option.unit} • Price: ₹{option.price}
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
+
+        {/* Input Fields Container - Always rendered but conditionally visible */}
+        <Grid item xs={12}>
+          <Grid container spacing={2} sx={{ 
+            visibility: selectedStock ? 'visible' : 'hidden',
+            height: selectedStock ? 'auto' : '0px',
+            overflow: 'hidden',
+            transition: 'height 0.2s ease-in-out'
+          }}>
+            {/* Weight field - Only for livestock */}
+            <Grid item xs={12} sm={4}>
+              <Box sx={{ 
+                visibility: itemType === 'livestock' ? 'visible' : 'hidden',
+                height: itemType === 'livestock' ? 'auto' : '0px',
+                overflow: 'hidden'
+              }}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Weight (kg)"
+                  value={currentItem.weight}
+                  onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
+                  size={isMobile ? "small" : "medium"}
+                  InputProps={{
+                    inputProps: { min: 0, step: 0.1 }
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* Quantity and Rate fields */}
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Quantity"
+                value={currentItem.quantity}
+                onChange={(e) => updateItemCalculations('quantity', parseInt(e.target.value))}
+                size={isMobile ? "small" : "medium"}
+                InputProps={{
+                  inputProps: { min: 1 }
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Rate"
+                value={currentItem.rate}
+                onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
+                size={isMobile ? "small" : "medium"}
+                InputProps={{
+                  inputProps: { min: 0, step: 0.01 }
+                }}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
+
+        {/* Add Item Button */}
+        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddItem}
+            disabled={!selectedStock || (!currentItem.quantity && !currentItem.weight) || !currentItem.rate}
+            size={isMobile ? "small" : "medium"}
+          >
+            Add Item
+          </Button>
+        </Grid>
+      </Grid>
+    </Paper>
+  );
 
   return (
     <Dialog 
@@ -343,7 +625,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 4 }}>
           <Typography variant="h6" component="div">
-            Create Invoice - {customer?.name}
+            Create Invoice - {customer?.customerName}
           </Typography>
           <IconButton
             aria-label="close"
@@ -373,8 +655,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Invoice Number"
-              value={invoiceNumber}
+              label="Sale Number"
+              value={saleNumber}
               disabled
               variant="outlined"
               InputProps={{
@@ -400,32 +682,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           <Grid item xs={12}>
             <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Customer Details</Typography>
           </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Customer Name"
-              value={customer?.name || ''}
-              disabled
-              variant="outlined"
-              InputProps={{
-                readOnly: true,
-                sx: { bgcolor: 'action.hover' }
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Contact Number"
-              value={customer?.contactNumber || ''}
-              disabled
-              variant="outlined"
-              InputProps={{
-                readOnly: true,
-                sx: { bgcolor: 'action.hover' }
-              }}
-            />
-          </Grid>
+          <CustomerDetailsSection />
 
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -433,96 +690,8 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
             </Alert>
           )}
 
-          <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Add Items
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Autocomplete
-                  options={stockItems}
-                  getOptionLabel={(option) => `${option.name} (Stock: ${option.remainingStock})`}
-                  fullWidth
-                  renderInput={(params) => (
-                    <TextField 
-                      {...params} 
-                      label="Select Item"
-                      ref={itemInputRef}
-                      size={isMobile ? "small" : "medium"}
-                    />
-                  )}
-                  onChange={handleItemSelect}
-                  value={selectedStock}
-                  isOptionEqualToValue={(option, value) => option.name === value.name}
-                />
-              </Grid>
-              <Grid item xs={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  type="number"
-                  value={currentItem.quantity}
-                  onChange={(e) => updateItemCalculations('quantity', parseFloat(e.target.value))}
-                  inputProps={{ 
-                    min: 1, 
-                    max: currentItem.remainingStock 
-                  }}
-                  size={isMobile ? "small" : "medium"}
-                  helperText="Used if no weight provided"
-                />
-              </Grid>
-              <Grid item xs={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Weight (kg)"
-                  type="number"
-                  value={currentItem.weight}
-                  onChange={(e) => updateItemCalculations('weight', parseFloat(e.target.value))}
-                  inputProps={{ 
-                    min: 0, 
-                    step: 0.1 
-                  }}
-                  size={isMobile ? "small" : "medium"}
-                  helperText={currentItem.weight > 0 ? "Total weight (prioritized)" : "Optional"}
-                />
-              </Grid>
-           
-              <Grid item xs={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Rate"
-                  type="number"
-                  value={currentItem.rate}
-                  onChange={(e) => updateItemCalculations('rate', parseFloat(e.target.value))}
-                  inputProps={{ min: 0 }}
-                  size={isMobile ? "small" : "medium"}
-                  helperText={currentItem.weight > 0 ? "Per kg" : "Per unit"}
-                />
-              </Grid>
-              <Grid item xs={6} md={2}>
-                <TextField
-                  fullWidth
-                  label="Total"
-                  type="number"
-                  value={currentItem.total}
-                  disabled
-                  InputProps={{ readOnly: true }}
-                  size={isMobile ? "small" : "medium"}
-                  helperText={currentItem.weight > 0 ? "Weight × Rate" : "Quantity × Rate"}
-                />
-              </Grid>
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <IconButton 
-                  color="primary" 
-                  onClick={handleAddItem}
-                  disabled={!selectedStock || (!currentItem.quantity && !currentItem.weight) || !currentItem.rate}
-                  size={isMobile ? "small" : "medium"}
-                >
-                  <AddIcon />
-                </IconButton>
-              </Grid>
-            </Grid>
-          </Paper>
+          {/* Item Selection */}
+          {renderItemSelection()}
 
           <TableContainer component={Paper} elevation={2}>
             <Table>
@@ -569,6 +738,142 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Payment Section */}
+          <Grid container spacing={2} sx={{ mt: 3 }}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>Payment Details</Typography>
+            </Grid>
+
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                label="Payment Type"
+                value={paymentType}
+                onChange={(e) => {
+                  setPaymentType(e.target.value);
+                  if (e.target.value === 'credit') {
+                    setSelectedAccount('');
+                    setPaidAmount(0);
+                  } else if (e.target.value === 'payment') {
+                    setPaidAmount(0);
+                  }
+                }}
+              >
+                <MenuItem value="credit">Save as Credit</MenuItem>
+                <MenuItem value="payment">Make Payment</MenuItem>
+              </TextField>
+            </Grid>
+
+            {paymentType === 'payment' && (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Select Account"
+                    value={selectedAccount}
+                    onChange={(e) => setSelectedAccount(e.target.value)}
+                    error={!selectedAccount && paymentType === 'payment'}
+                    helperText={!selectedAccount && paymentType === 'payment' ? 'Please select an account' : ''}
+                  >
+                    {accounts.map((account) => (
+                      <MenuItem key={account._id} value={account._id}>
+                        {account.accountName}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Payment Amount"
+                    value={paidAmount}
+                    onChange={(e) => {
+                      const newAmount = Number(e.target.value);
+                      if (newAmount >= 0) {
+                        setPaidAmount(newAmount);
+                      }
+                    }}
+                    error={paymentType === 'payment' && paidAmount <= 0}
+                    helperText={paymentType === 'payment' && paidAmount <= 0 ? 'Please enter valid amount' : ''}
+                    InputProps={{
+                      inputProps: { 
+                        min: 0,
+                        step: 0.01 
+                      }
+                    }}
+                  />
+                </Grid>
+
+                {/* Payment Summary Box */}
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: 'background.paper', 
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.primary.main,
+                    mt: 2 
+                  }}>
+                    <Grid container spacing={1}>
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" color="primary">
+                          Payment Breakdown
+                        </Typography>
+                      </Grid>
+                      
+                      {/* Invoice Details */}
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">
+                          Invoice Amount: ₹{calculateGrandTotal()}
+                        </Typography>
+                      </Grid>
+
+                      {/* Payment Adjustment */}
+                      {paidAmount > 0 && (
+                        <>
+                          <Grid item xs={12}>
+                            <Typography variant="body2" color="text.secondary">
+                              Payment Amount: ₹{paidAmount.toFixed(2)}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={12}>
+                            <Typography variant="body2" color="text.secondary">
+                              Adjusted Against Invoice: ₹{Math.min(paidAmount, Number(calculateGrandTotal())).toFixed(2)}
+                            </Typography>
+                          </Grid>
+
+                          {/* Show advance amount if payment is more than invoice */}
+                          {paidAmount > Number(calculateGrandTotal()) && (
+                            <Grid item xs={12}>
+                              <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                                Advance Carry Forward: ₹{(paidAmount - Number(calculateGrandTotal())).toFixed(2)}
+                              </Typography>
+                            </Grid>
+                          )}
+
+                          {/* Show remaining if payment is less than invoice */}
+                          {paidAmount < Number(calculateGrandTotal()) && (
+                            <Grid item xs={12}>
+                              <Typography variant="body2" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                                Remaining Balance: ₹{(Number(calculateGrandTotal()) - paidAmount).toFixed(2)}
+                              </Typography>
+                            </Grid>
+                          )}
+                        </>
+                      )}
+                    </Grid>
+                  </Box>
+                </Grid>
+              </>
+            )}
+          </Grid>
         </Grid>
       </DialogContent>
 
@@ -580,7 +885,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           variant="contained" 
           color="primary"
           disabled={items.length === 0 || loading}
-          onClick={handleCreateInvoice}
+          onClick={handleSubmit}
         >
           {loading ? <CircularProgress size={24} /> : 'Create Invoice'}
         </Button>

@@ -41,7 +41,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `Invoice_${invoiceData?.invoiceNumber || 'Print'}`,
+    documentTitle: `Invoice_${invoiceData?.saleNumber || 'Print'}`,
     onBeforeGetContent: () => {
       if (!componentRef.current) {
         return Promise.reject('Printing content not ready');
@@ -204,7 +204,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
               fontWeight: 'bold',
               fontSize: isPreview && isMobile ? '0.8rem' : '0.9rem'
             }}>
-              Invoice No: {invoiceData.invoiceNumber}
+              Invoice No: {invoiceData.saleNumber}
             </Typography>
             <Typography sx={{ 
               fontWeight: 'bold', 

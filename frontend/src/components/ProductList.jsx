@@ -6,176 +6,245 @@ import {
   Typography,
   Collapse,
   IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Grid,
   CardHeader,
   Chip,
-  CircularProgress
+  Avatar,
+  Stack,
+  Divider,
+  Tab,
+  Tabs,
+  styled,
+  Container,
+  LinearProgress
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { productService } from '../services/productService';
-import { alpha } from '@mui/material/styles';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
+import StockHistory from './StockHistory';
+import * as productService from '../services/productService';
 
-// Single product card with expandable details
-const ProductCard = ({ product, onUpdate }) => {
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  background: theme.palette.background.paper,
+  transition: 'all 0.3s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-8px)',
+    boxShadow: '0 12px 24px rgba(0, 0, 0, 0.1)',
+  },
+}));
+
+const StockChip = styled(Chip)(({ theme, stocklevel }) => ({
+  borderRadius: '8px',
+  padding: '0 8px',
+  height: '28px',
+  backgroundColor: 
+    stocklevel === 'low' ? theme.palette.error.lighter :
+    stocklevel === 'medium' ? theme.palette.warning.lighter :
+    theme.palette.success.lighter,
+  color: 
+    stocklevel === 'low' ? theme.palette.error.darker :
+    stocklevel === 'medium' ? theme.palette.warning.darker :
+    theme.palette.success.darker,
+  '& .MuiChip-label': {
+    fontWeight: 600,
+  },
+}));
+
+const MetricBox = styled(Box)(({ theme, color = 'primary' }) => ({
+  padding: theme.spacing(2.5),
+  borderRadius: theme.shape.borderRadius * 1.5,
+  background: theme.palette[color].lighter,
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  transition: 'transform 0.2s',
+  '&:hover': {
+    transform: 'scale(1.02)',
+  },
+}));
+
+const StyledAvatar = styled(Avatar)(({ theme }) => ({
+  width: 48,
+  height: 48,
+  backgroundColor: theme.palette.primary.main,
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+}));
+
+const ProductCard = ({ product }) => {
   const [open, setOpen] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const [todayMetrics, setTodayMetrics] = useState({
+    sales: 0,
+    purchases: 0,
+    collections: 0
+  });
+  const [loading, setLoading] = useState(false);
 
-  const formatDateTime = (dateString) => {
-    // Create date object in local timezone
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString('en-IN'),
-      // Use hour12 true to show AM/PM format
-      time: date.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true
-      })
+  useEffect(() => {
+    const fetchTodayMetrics = async () => {
+      setLoading(true);
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const response = await productService.getDailyStockReport(today);
+        const productReport = response.data.find(
+          report => report.productId === product._id
+        );
+        if (productReport) {
+          setTodayMetrics({
+            sales: productReport.totalSales || 0,
+            purchases: productReport.totalPurchases || 0,
+            collections: productReport.totalCollections || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+
+    if (open) {
+      fetchTodayMetrics();
+    }
+  }, [open, product._id]);
+
+  const getStockLevel = (stock) => {
+    if (stock < 10) return 'low';
+    if (stock < 30) return 'medium';
+    return 'high';
   };
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <StyledCard>
       <CardHeader
-        title={`${product.type.charAt(0).toUpperCase() + product.type.slice(1)}`}
-        subheader={`Current Stock: ${product.currentStock} ${product.type === 'milk' ? 'L' : 'Pcs'}`}
+        avatar={
+          <StyledAvatar>
+            <InventoryIcon />
+          </StyledAvatar>
+        }
         action={
-          <IconButton onClick={() => setOpen(!open)}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          <IconButton 
+            onClick={() => setOpen(!open)}
+            sx={{ 
+              transform: open ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.3s'
+            }}
+          >
+            <KeyboardArrowDownIcon />
           </IconButton>
+        }
+        title={
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+            {product.name}
+          </Typography>
+        }
+        subheader={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <StockChip
+              label={`${product.currentStock} ${product.unit}`}
+              stocklevel={getStockLevel(product.currentStock)}
+            />
+            <Chip
+              icon={<CurrencyRupeeIcon sx={{ fontSize: '1rem' }} />}
+              label={product.price.toFixed(2)}
+              size="small"
+              variant="outlined"
+              sx={{ borderRadius: '8px' }}
+            />
+          </Stack>
         }
       />
 
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Collection History
-          </Typography>
-          <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Time</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Previous Stock</TableCell>
-                  <TableCell align="right">Current Stock</TableCell>
-                  <TableCell>Shift</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {product.stockHistory
-                  .sort((a, b) => new Date(b.date) - new Date(a.date))
-                  .map((entry, index) => {
-                    const { date, time } = formatDateTime(entry.date);
-                    return (
-                      <TableRow 
-                        key={index}
-                        sx={{
-                          backgroundColor: entry.transactionType === 'sale' 
-                            ? alpha('#ff0000', 0.1)
-                            : alpha('#4caf50', 0.1)
-                        }}
-                      >
-                        <TableCell>{date}</TableCell>
-                        <TableCell>{time}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={entry.transactionType}
-                            color={entry.transactionType === 'sale' ? 'error' : 'success'}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          {entry.quantity} {product.type === 'milk' ? 'L' : 'Pcs'}
-                        </TableCell>
-                        <TableCell align="right">
-                          {entry.previousStock} {product.type === 'milk' ? 'L' : 'Pcs'}
-                        </TableCell>
-                        <TableCell align="right">
-                          {entry.currentStock} {product.type === 'milk' ? 'L' : 'Pcs'}
-                        </TableCell>
-                        <TableCell>{entry.shift || '-'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+        {loading && <LinearProgress sx={{ mx: 2 }} />}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, v) => setTabValue(v)} 
+            variant="fullWidth"
+            sx={{
+              '& .MuiTab-root': {
+                fontWeight: 500,
+                fontSize: '0.95rem'
+              }
+            }}
+          >
+            <Tab label="Today's Metrics" />
+            <Tab label="Stock History" />
+          </Tabs>
+        </Box>
 
-          {/* Summary Section */}
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+        <CardContent>
+          {tabValue === 0 ? (
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Total Collections
-                  </Typography>
-                  <Typography variant="h6">
-                    {product.stockHistory
-                      .filter(entry => entry.transactionType === 'collection')
-                      .reduce((sum, entry) => sum + entry.quantity, 0)}
-                    {' '}{product.type === 'milk' ? 'L' : 'Pcs'}
-                  </Typography>
-                </Paper>
+              <Grid item xs={12}>
+                <MetricBox color="error">
+                  <TrendingDownIcon color="error" sx={{ fontSize: 32 }} />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Today's Sales
+                    </Typography>
+                    <Typography variant="h6" color="error.darker" sx={{ fontWeight: 600 }}>
+                      {`${todayMetrics.sales} ${product.unit}`}
+                    </Typography>
+                  </Box>
+                </MetricBox>
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Total Sales
-                  </Typography>
-                  <Typography variant="h6">
-                    {product.stockHistory
-                      .filter(entry => entry.transactionType === 'sale')
-                      .reduce((sum, entry) => sum + entry.quantity, 0)}
-                    {' '}{product.type === 'milk' ? 'L' : 'Pcs'}
-                  </Typography>
-                </Paper>
+              <Grid item xs={12}>
+                <MetricBox color="success">
+                  <ShoppingCartIcon color="success" sx={{ fontSize: 32 }} />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Today's Purchases
+                    </Typography>
+                    <Typography variant="h6" color="success.darker" sx={{ fontWeight: 600 }}>
+                      {`${todayMetrics.purchases} ${product.unit}`}
+                    </Typography>
+                  </Box>
+                </MetricBox>
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Current Stock
-                  </Typography>
-                  <Typography variant="h6">
-                    {product.currentStock} {product.type === 'milk' ? 'L' : 'Pcs'}
-                  </Typography>
-                </Paper>
+              <Grid item xs={12}>
+                <MetricBox color="info">
+                  <TrendingUpIcon color="info" sx={{ fontSize: 32 }} />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Today's Collections
+                    </Typography>
+                    <Typography variant="h6" color="info.darker" sx={{ fontWeight: 600 }}>
+                      {`${todayMetrics.collections} ${product.unit}`}
+                    </Typography>
+                  </Box>
+                </MetricBox>
               </Grid>
             </Grid>
-          </Box>
-        </Box>
+          ) : (
+            <Box sx={{ mt: 2 }}>
+              <StockHistory itemId={product._id} itemType="Product" />
+            </Box>
+          )}
+        </CardContent>
       </Collapse>
-    </Card>
+    </StyledCard>
   );
 };
 
-// Main ProductList component
-const ProductList = ({ products, loading, onProductUpdate }) => {
-  if (loading) {
-    return <CircularProgress />;
-  }
-
+const ProductList = ({ products }) => {
   return (
-    <Box>
-      {products.map((product) => (
-        <ProductCard 
-          key={product._id} 
-          product={product}
-          onUpdate={onProductUpdate}
-        />
-      ))}
-    </Box>
+    <Container maxWidth="xl">
+      <Grid container spacing={3}>
+        {products.map((product) => (
+          <Grid item xs={12} md={6} key={product._id}>
+            <ProductCard product={product} />
+          </Grid>
+        ))}
+      </Grid>
+    </Container>
   );
 };
 
-export { ProductCard };
 export default ProductList;

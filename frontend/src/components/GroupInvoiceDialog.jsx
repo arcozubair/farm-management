@@ -24,7 +24,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useSnackbar } from 'notistack';
 import * as productService from '../services/productService';
-import * as invoiceService from '../services/invoiceService';
+import * as saleServices from '../services/saleServices';
 
 const GroupInvoiceDialog = ({ open, onClose, customers }) => {
   const [loading, setLoading] = useState(false);
@@ -99,7 +99,7 @@ const GroupInvoiceDialog = ({ open, onClose, customers }) => {
         }));
 
         // Send array of invoices directly to the createInvoice endpoint
-        const result = await invoiceService.createInvoice(invoicesData);
+        const result = await saleServices.createInvoice(invoicesData);
         
         if (result.success) {
           enqueueSnackbar('Invoices created successfully', { variant: 'success' });

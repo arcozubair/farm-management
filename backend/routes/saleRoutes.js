@@ -9,7 +9,7 @@ router.use(protect);
 // Routes
 router.route('/')
     .post(createSale)
-    .get(getSales);
+ 
 
 router.route('/:id')
     .get(getSalesById)
@@ -18,7 +18,7 @@ router.route('/:id')
 
 router.get('/customer/:customerId', getSalesByCustomer);
 
-router.get('/by-date/:date', getSalesByDate);
+router.get('/by-date/:date', getSales);
 
 
 module.exports = router; 

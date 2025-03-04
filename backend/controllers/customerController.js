@@ -1,6 +1,8 @@
 const Customer = require('../models/Customer');
 const CustomerTransaction = require('../models/CustomerTransaction');
 const Sale = require('../models/Sale.model');
+const Transaction = require('../models/Transaction');
+const mongoose = require('mongoose');
 
 // Get all customers
 exports.getCustomers = async (req, res) => {
@@ -167,123 +169,108 @@ exports.createInvoice = async (req, res) => {
 
 exports.getCustomerLedger = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { customerId } = req.params;
     const { startDate, endDate } = req.query;
 
-    // If no dates provided, default to current month
-    const start = startDate
-      ? new Date(startDate)
-      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const end = endDate
-      ? new Date(endDate)
-      : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
 
-    // Verify the customer exists and belongs to the logged-in user
-    const customer = await Customer.findOne({
-      _id: id,
-      createdBy: req.user._id
-    });
+    // Get all transactions for this customer
+    const transactions = await Transaction.find({
+      $or: [
+        { debitAccount: customerId },
+        { creditAccount: customerId }
+      ],
+      date: { $gte: start, $lte: end }
+    })
+    .sort({ date: 1 })
+    .populate('saleRef', 'saleNumber');
 
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer not found'
-      });
-    }
-    const customerId = customer._id;
-
-    // Aggregation using $unionWith
-    const ledgerDetails = await Sale.aggregate([
-      // 1. Match and project Sales records for the customer within the date range
+    let runningBalance = 0;
+    // Get opening balance
+    const openingBalance = await Transaction.aggregate([
       {
         $match: {
-          customer: customerId,
-          createdAt: { $gte: start, $lte: end }
+          $or: [
+            { debitAccount: mongoose.Types.ObjectId(customerId) },
+            { creditAccount: mongoose.Types.ObjectId(customerId) }
+          ],
+          date: { $lt: start }
         }
       },
       {
-        $project: {
-          _id: 1,
-          // Use invoiceDate if available; otherwise, fallback to createdAt
-          date: { $ifNull: ["$invoiceDate", "$createdAt"] },
-          type: { $literal: "Sale" },
-          description: { $concat: ["Sale #", "$invoiceNumber"] },
-          amount: "$grandTotal", // Debit entry (positive)
-          remainingBalance: "$remainingBalance",
-          transactionMode: { $literal: null },
-          createdAt: { $ifNull: ["$invoiceDate", "$createdAt"] }
-        }
-      },
-      // 2. Use $unionWith to combine with Customer Transactions
-      {
-        $unionWith: {
-          coll: "customertransactions", // Ensure this matches your collection name
-          pipeline: [
-            {
-              $match: {
-                customerId: customerId
-              }
-            },
-            // Unwind transactions so that each individual transaction is processed
-            { $unwind: "$transactions" },
-            {
-              $match: {
-                "transactions.date": { $gte: start, $lte: end }
-              }
-            },
-            {
-              $project: {
-                _id: 0, // Exclude the original _id
-                date: "$transactions.date",
-                type: { $literal: "Transaction" },
-                description: {
-                  $concat: [
-                    "Payment - Receipt #",
-                    { $toString: "$transactions.transactionNumber" }
-                  ]
-                },
-                // Represent payments as negative amounts
-                amount: { $multiply: [-1, "$transactions.amount"] },
-                transactionMode: "$transactions.modeOfPayment",
-                createdAt: "$transactions.date"
-              }
+        $group: {
+          _id: null,
+          balance: {
+            $sum: {
+              $cond: [
+                { $eq: ["$debitAccount", mongoose.Types.ObjectId(customerId)] },
+                "$amount",
+                { $multiply: ["$amount", -1] }
+              ]
             }
-          ]
+          }
         }
-      },
-      // 3. Sort the combined entries by date in ascending order
-      { $sort: { date: 1 } }
+      }
     ]);
 
-    // Calculate the running balance starting with the customer's opening balance
-    let runningBalance = customer.openingBalance;
-    ledgerDetails.forEach(entry => {
-      runningBalance += entry.amount;
-      entry.balanceAfterEntry = runningBalance;
+    runningBalance = openingBalance[0]?.balance || 0;
+
+    const ledgerEntries = transactions.map(t => {
+      const isDebit = t.debitAccount.toString() === customerId.toString();
+      const amount = t.amount;
+      
+      // Update running balance
+      if (isDebit) {
+        runningBalance += amount;
+      } else {
+        runningBalance -= amount;
+      }
+
+      // Get context-aware description
+      let description;
+      
+      if (t.saleRef) {
+        if (t.description.includes('Payment')) {
+          description = `Payment for Sale #${t.saleRef.saleNumber}`;
+        } else if (t.description.includes('Advance')) {
+          description = `Advance Payment from Sale #${t.saleRef.saleNumber}`;
+        } else {
+          description = `Sale #${t.saleRef.saleNumber}`;
+        }
+      } else {
+        // Use context-specific description for the customer's perspective
+        description = t.contextDescriptions?.[customerId.toString()] || t.description;
+      }
+
+      return {
+        _id: t._id,
+        date: t.date,
+        particulars: description,
+        type: isDebit ? 'debit' : 'credit',
+        amount: amount,
+        runningBalance: runningBalance
+      };
     });
 
     res.json({
       success: true,
       data: {
-        customerInfo: {
-          name: customer.name,
-          contactNumber: customer.contactNumber,
-          address: customer.address
-        },
-        startingBalance: customer.openingBalance,
-        currentBalance: runningBalance,
-        ledgerDetails
+        openingBalance: openingBalance[0]?.balance || 0,
+        entries: ledgerEntries,
+        closingBalance: runningBalance
       }
     });
+
   } catch (error) {
-    console.error("Error in getCustomerLedger:", error);
-    res.status(400).json({
+    console.error('Error in getCustomerLedger:', error);
+    res.status(500).json({
       success: false,
       message: error.message
     });
   }
 };
-
 
 exports.getCustomerLedgerSummary = async (req, res) => {
   try {

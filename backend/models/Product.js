@@ -1,61 +1,61 @@
 const mongoose = require('mongoose');
 
-const stockHistorySchema = new mongoose.Schema({
-  date: {
-    type: Date,
-    required: true
-  },
-  transactionType: {
-    type: String,
-    enum: ['collection', 'sale'],
-    required: true
-  },
-  quantity: {
-    type: Number,
-    required: true
-  },
-  previousStock: {
-    type: Number,
-    required: true
-  },
-  currentStock: {
-    type: Number,
-    required: true
-  },
-  shift: {
-    type: String,
-    enum: ['morning', 'evening'],
-    required: function() {
-      return this.transactionType === 'collection';
-    }
-  },
-  dayBookEntryId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'DayBook',
-    required: true
-  }
-}, { timestamps: true });
-
 const productSchema = new mongoose.Schema({
-  type: {
+  name: {
     type: String,
     required: true,
-    enum: ['milk', 'eggs']
+    trim: true,
+    unique: true
+  },
+ 
+  unit: {
+    type: String,
+    required: true,
+    enum: ['litre', 'kg', 'gram', 'dozen', 'piece', 'packet']
   },
   currentStock: {
     type: Number,
     required: true,
-    default: 0
+    default: 0,
+    min: 0
   },
   price: {
     type: Number,
     required: true,
-    default: 0
+    default: 0,
+    min: 0
   },
-  stockHistory: [stockHistorySchema]
-}, { timestamps: true });
+  description: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, { 
+  timestamps: true 
+});
 
-// Add index for better query performance
-productSchema.index({ type: 1 });
+// Indexes for better query performance
+productSchema.index({ name: 1 }, { unique: true });
+productSchema.index({ category: 1 });
+
+// Virtual for stock status
+productSchema.virtual('stockStatus').get(function() {
+  if (this.currentStock <= this.minStockLevel) {
+    return 'low';
+  } else if (this.currentStock <= this.reorderPoint) {
+    return 'reorder';
+  } else if (this.maxStockLevel && this.currentStock >= this.maxStockLevel) {
+    return 'excess';
+  }
+  return 'normal';
+});
+
+// Method to check if stock is sufficient
+productSchema.methods.hasEnoughStock = function(quantity) {
+  return this.currentStock >= quantity;
+};
 
 module.exports = mongoose.model('Product', productSchema); 

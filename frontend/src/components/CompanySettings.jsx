@@ -32,7 +32,7 @@ const validationSchema = Yup.object({
     receiptPrefix: Yup.string().required('Receipt prefix is required')
   }),
   numberSequences: Yup.object({
-    lastInvoiceNumber: Yup.number().required('Last invoice number is required'),
+    lastSaleNumber: Yup.number().required('Last invoice number is required'),
     lastTransactionNumber: Yup.number().required('Last transaction number is required'),
     lastReceiptNumber: Yup.number().required('Last receipt number is required')
   })
@@ -63,7 +63,7 @@ const CompanySettings = () => {
         receiptPrefix: ''
       },
       numberSequences: {
-        lastInvoiceNumber: 0,
+        lastSaleNumber: 0,
         lastTransactionNumber: 0,
         lastReceiptNumber: 0
       }
@@ -289,9 +289,9 @@ const CompanySettings = () => {
                   <TextField
                     fullWidth
                     label="Current Invoice Number"
-                    name="numberSequences.lastInvoiceNumber"
+                    name="numberSequences.lastSaleNumber"
                     type="number"
-                    value={formik.values.numberSequences.lastInvoiceNumber}
+                    value={formik.values.numberSequences.lastSaleNumber}
                     onChange={formik.handleChange}
                     InputProps={{
                       readOnly: true,

@@ -30,11 +30,19 @@ const companySettingsSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    lastInvoiceNumber: {
+    lastSaleNumber: {
       type: Number,
       default: 0
     },
     lastReceiptNumber: {
+      type: Number,
+      default: 0
+    },
+    lastTransferNumber: {
+      type: Number,
+      default: 0
+    },
+    lastPurchaseNumber: {
       type: Number,
       default: 0
     }
@@ -44,13 +52,21 @@ const companySettingsSchema = new mongoose.Schema({
       type: String,
       default: 'TXN'
     },
-    invoicePrefix: {
+    salePrefix: {
       type: String,
-      default: 'INV'
+      default: 'SALE'
     },
     receiptPrefix: {
       type: String,
       default: 'RCP'
+    },
+    transferPrefix: {
+      type: String,
+      default: 'TRF'
+    },
+    purchasePrefix: {
+      type: String,
+      default: 'PUR'
     }
   }
 }, { 

@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const sendPdfToWhatsapp = async ({ phoneNumber, pdfUrl, invoiceNumber, customerName }) => {
+const sendPdfToWhatsapp = async ({ phoneNumber, pdfUrl, saleNumber, customerName }) => {
     if (!process.env.AISENSY_API_KEY) {
         console.error('AISENSY_API_KEY not configured');
         return { 
@@ -17,7 +17,7 @@ const sendPdfToWhatsapp = async ({ phoneNumber, pdfUrl, invoiceNumber, customerN
 
         console.log('Preparing WhatsApp request for:', {
             phone: phoneWithCountryCode,
-            invoice: invoiceNumber
+            invoice: saleNumber
         });
 
         const data = {
@@ -27,12 +27,12 @@ const sendPdfToWhatsapp = async ({ phoneNumber, pdfUrl, invoiceNumber, customerN
             userName: customerName || "Valued Customer",
             templateParams: [
                
-                invoiceNumber,
+                saleNumber,
                 new Date().toLocaleDateString('en-IN')
             ],
             media: {
                 url: pdfUrl,
-                filename: `Invoice_${invoiceNumber}.pdf`
+                filename: `Invoice_${saleNumber}.pdf`
             }
         };
 

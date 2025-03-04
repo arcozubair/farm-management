@@ -11,12 +11,12 @@ export const getCompanySettings = async () => {
   }
 };
 
-export const getNextInvoiceNumber = async () => {
+export const getNextSaleNumber = async () => {
   try {
-    const response = await api.get(`${BASE_URL}/next-invoice-number`);
+    const response = await api.get(`${BASE_URL}/next-sale-number`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch next invoice number' };
+    throw error.response?.data || { message: 'Failed to fetch next sale number' };
   }
 };
 

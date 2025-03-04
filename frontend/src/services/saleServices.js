@@ -5,7 +5,7 @@ const BASE_URL = '/sales';
 // Create new invoice
 export const createSale = async (saleData) => {
   try {
-    const response = await api.post('/sales', saleData);
+    const response = await api.post(`${BASE_URL}`, saleData);
     return response.data;
   } catch (error) {
     // Simple error handling
@@ -18,12 +18,23 @@ export const createSale = async (saleData) => {
 };
 
 // Get all invoices with optional filters
-export const getSales = async (params) => {
+export const getSales = async (date) => {
   try {
-    const response = await api.get(BASE_URL, { params });
+    // Format date to YYYY-MM-DD
+    const formattedDate = date instanceof Date 
+      ? date.toISOString().split('T')[0] 
+      : new Date(date).toISOString().split('T')[0];
+
+    // Handle invalid dates
+    if (formattedDate === 'Invalid Date') {
+      throw new Error('Invalid date format');
+    }
+
+    const response = await api.get(`${BASE_URL}/by-date/${formattedDate}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Failed to fetch invoices' };
+    console.error('Error in getSales:', error);
+    throw error.response?.data || error;
   }
 };
 
@@ -105,10 +116,21 @@ export const searchSales = async (query) => {
 
 export const getSalesByDate = async (date) => {
   try {
-    const response = await api.get(`${BASE_URL}/by-date/${date}`);
+    // Format date to YYYY-MM-DD
+    const formattedDate = date instanceof Date 
+      ? date.toISOString().split('T')[0] 
+      : new Date(date).toISOString().split('T')[0];
+
+    // Handle invalid dates
+    if (formattedDate === 'Invalid Date') {
+      throw new Error('Invalid date format');
+    }
+
+    const response = await api.get(`${BASE_URL}/by-date/${formattedDate}`);
     return response.data;
   } catch (error) {
-    throw error;
+    console.error('Error in getSalesByDate:', error);
+    throw error.response?.data || error;
   }
 };
 

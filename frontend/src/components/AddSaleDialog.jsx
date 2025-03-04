@@ -7,17 +7,83 @@ import {
   TextField,
   Box,
   CircularProgress,
-  Typography
+  Typography,
+  Grid,
+  Button,
+  Alert,
+  IconButton
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import customerService from '../services/customerService';
-import CreateInvoiceDialog from './CreateInvoiceDialog';
 import CloseIcon from '@mui/icons-material/Close';
-import IconButton from '@mui/material/IconButton';
+import accountService from '../services/accountService';
+import CreateInvoiceDialog from './CreateInvoiceDialog';
+import useResponsiveness from '../hooks/useResponsive';
+
+// Move formatBalance to be accessible by both components
+const formatBalance = (balance, balanceType) => {
+  const amount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR'
+  }).format(Math.abs(balance || 0));
+
+  return `${amount} ${balanceType || 'DR'}`;
+};
+
+const CustomerPreview = ({ customer }) => {
+  if (!customer) return null;
+  
+  return (
+    <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+      <Typography variant="subtitle1" gutterBottom>
+        Selected Customer Details
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <Typography variant="body2" color="text.secondary">
+            Name: {customer.customerName}
+          </Typography>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Typography variant="body2" color="text.secondary">
+            Contact: {customer.contactNo || 'N/A'}
+          </Typography>
+        </Grid>
+        {customer.email && (
+          <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary">
+              Email: {customer.email}
+            </Typography>
+          </Grid>
+        )}
+        {customer.address && (
+          <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary">
+              Address: {customer.address}
+            </Typography>
+          </Grid>
+        )}
+        {customer.openingBalance !== undefined && (
+          <Grid item xs={12}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: customer.openingBalanceType === 'Credit' ? 'success.main' : 'error.main'
+              }}
+            >
+              Balance: {formatBalance(customer.openingBalance, customer.openingBalanceType)}
+            </Typography>
+          </Grid>
+        )}
+      </Grid>
+    </Box>
+  );
+};
 
 const AddSaleDialog = ({ open, onClose }) => {
-  const [customers, setCustomers] = useState([]);
+  const { isMobile } = useResponsiveness();
+  const [customerAccounts, setCustomerAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState('');
@@ -34,27 +100,54 @@ const AddSaleDialog = ({ open, onClose }) => {
           }
         }
       }, 100);
+    } else {
+      // Reset states when dialog closes
+      setSelectedCustomer(null);
+      setSearchInputValue('');
+      setCustomerAccounts([]);
+      setError(null);
     }
   }, [open]);
 
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (open) {
+      window.addEventListener('keydown', handleKeyPress);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [open, onClose]);
+
   const handleSearch = async (searchText) => {
     if (searchText.length < 2) {
-      setCustomers([]);
+      setCustomerAccounts([]);
+      setError(null);
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
-      const response = await customerService.searchCustomers(searchText);
-      setCustomers(response.data || []);
+      const response = await accountService.getAccounts({
+        accountType: 'Customer',
+        search: searchText
+      });
+      setCustomerAccounts(response.data || []);
     } catch (error) {
-      console.error('Error searching customers:', error);
+      console.error('Error searching customer accounts:', error);
+      setError('Failed to search customers. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Debounce function
   const debounce = (func, wait) => {
     let timeout;
     return function executedFunction(...args) {
@@ -80,7 +173,23 @@ const AddSaleDialog = ({ open, onClose }) => {
     setInvoiceDialogOpen(false);
     setSelectedCustomer(null);
     setSearchInputValue('');
+    
     onClose();
+  };
+
+  const handleWalkInCustomer = async () => {
+    try {
+      const response = await accountService.getAccounts({
+        accountType: 'Customer',
+        search: 'Walk-in Customer'
+      });
+      const walkInCustomer = response.data?.[0];
+      if (walkInCustomer) {
+        handleCustomerSelect(null, walkInCustomer);
+      }
+    } catch (error) {
+      setError('Failed to load walk-in customer');
+    }
   };
 
   return (
@@ -88,22 +197,13 @@ const AddSaleDialog = ({ open, onClose }) => {
       <Dialog 
         open={open} 
         onClose={onClose}
-        TransitionProps={{
-          onEntered: () => {
-            if (searchInputRef.current) {
-              const input = searchInputRef.current.querySelector('input');
-              if (input) {
-                input.focus();
-              }
-            }
-          }
-        }}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" component="div">
-              Add Sale
-            </Typography>
+            <Typography variant="h6">Add Sale</Typography>
             <IconButton
               aria-label="close"
               onClick={onClose}
@@ -119,10 +219,27 @@ const AddSaleDialog = ({ open, onClose }) => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ minWidth: 300, mt: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle1">Quick Actions</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleWalkInCustomer}
+            >
+              Walk-in Customer
+            </Button>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box sx={{ minWidth: 300 }}>
             <Autocomplete
-              options={customers}
-              getOptionLabel={(option) => `${option.name} (${option.contactNumber})`}
+              options={customerAccounts}
+              getOptionLabel={(option) => `${option.customerName} (${option.contactNo || 'No contact'})`}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -153,11 +270,25 @@ const AddSaleDialog = ({ open, onClose }) => {
               renderOption={(props, option) => (
                 <li {...props}>
                   <Box>
-                    <Typography variant="body1">{option.name}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Contact: {option.contactNumber}
-                      {option.currentBalance ? ` • Balance: ₹${option.currentBalance.toFixed(2)}` : ''}
+                    <Typography variant="body1">{option.customerName}</Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                      {option.contactNo && `Contact: ${option.contactNo}`}
+                      {option.email && ` • Email: ${option.email}`}
                     </Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                      {option.address && `Address: ${option.address}`}
+                    </Typography>
+                    {option.openingBalance !== undefined && (
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          display: 'block',
+                          color: option.openingBalanceType === 'Credit' ? 'success.main' : 'error.main'
+                        }}
+                      >
+                        Balance: {formatBalance(option.openingBalance, option.openingBalanceType)}
+                      </Typography>
+                    )}
                   </Box>
                 </li>
               )}
@@ -169,15 +300,21 @@ const AddSaleDialog = ({ open, onClose }) => {
                     : "No customers found"
               }
               loading={loading}
-              loadingText="Searching..."
+              loadingText={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2">Searching customers...</Typography>
+                </Box>
+              }
             />
           </Box>
+
+          <CustomerPreview customer={selectedCustomer} />
         </DialogContent>
       </Dialog>
 
       {selectedCustomer && (
         <CreateInvoiceDialog
-       
           open={invoiceDialogOpen}
           onClose={handleInvoiceClose}
           customer={selectedCustomer}

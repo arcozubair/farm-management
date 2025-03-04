@@ -1,15 +1,14 @@
 import api from './api';
-const API_URL = 'products';
 
-
+const API_URL = '/products';
 
 // Get all products
 export const getAllProducts = async () => {
   try {
-    const response = await api.get(API_URL, );
+    const response = await api.get(API_URL);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { success: false, message: 'Failed to fetch products' };
+    throw error.response?.data || error.message;
   }
 };
 
@@ -27,19 +26,19 @@ export const getProductDetails = async (date) => {
 };
 
 // Add product
-export const addProduct = async (productData) => {
+export const createProduct = async (productData) => {
   try {
-    const response = await api.post(API_URL, productData, );
+    const response = await api.post(API_URL, productData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { success: false, message: 'Failed to add product' };
+    throw error.response?.data || { success: false, message: 'Failed to create product' };
   }
 };
 
 // Update product
 export const updateProduct = async (id, productData) => {
   try {
-    const response = await api.put(`${API_URL}/${id}`, productData, );
+    const response = await api.put(`${API_URL}/${id}`, productData);
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to update product' };
@@ -49,7 +48,7 @@ export const updateProduct = async (id, productData) => {
 // Delete product
 export const deleteProduct = async (id) => {
   try {
-    const response = await api.delete(`${API_URL}/${id}`, );
+    const response = await api.delete(`${API_URL}/${id}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: 'Failed to delete product' };
@@ -57,12 +56,15 @@ export const deleteProduct = async (id) => {
 };
 
 // Update stock
-export const updateStock = async (stockData) => {
+export const updateStock = async (data) => {
   try {
-    const response = await api.post(`${API_URL}/updateStock`, stockData, );
+    const response = await api.post(`${API_URL}/update-stock`, {
+      ...data,
+      transactionType: data.transactionType || ''  // Allow passing transactionType from frontend
+    });
     return response.data;
   } catch (error) {
-    throw error.response?.data || { success: false, message: 'Failed to update stock' };
+    throw error.response?.data || error.message;
   }
 };
 
@@ -84,14 +86,26 @@ export const updateProductPrices = async (prices) => {
   }
 };
 
+// Get daily stock report
+export const getDailyStockReport = async (date) => {
+  try {
+    const response = await api.get(`${API_URL}/daily-report`, {
+      params: { date }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
 
 // Export all functions as named exports
 export const productService = {
   getAllProducts,
   getProductDetails,
-  addProduct,
+  createProduct,
   updateProduct,
   deleteProduct,
   updateStock,
-  updateProductPrices
+  updateProductPrices,
+  getDailyStockReport
 };

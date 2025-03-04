@@ -9,6 +9,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import theme from './theme';
+import './index.css';
 
 // Create notistackRef
 const notistackRef = React.createRef();

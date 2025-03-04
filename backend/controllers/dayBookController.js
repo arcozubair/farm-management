@@ -4,6 +4,8 @@ const CustomerTransaction = require('../models/CustomerTransaction');
 const DayBook = require('../models/DayBook');
 const Product = require('../models/Product');
 const Sale = require('../models/Sale.model');
+const StockMovement = require('../models/StockMovement');
+const mongoose = require('mongoose');
 
 exports.addTransaction = async (req, res) => {
   try {
@@ -113,104 +115,101 @@ exports.addTransaction = async (req, res) => {
 };
 
 exports.addCollection = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { date, type, quantity, shift } = req.body;
+    const { date, productId, quantity, shift } = req.body;
     
-    console.log('Adding collection:', { date, type, quantity, shift });
-    
-    // Create date objects for start and end of the day
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-
-    // Current exact time for the collection
+    
     const exactTime = new Date();
 
-    console.log('Searching between:', { startOfDay, endOfDay });
-    console.log('Exact collection time:', exactTime);
-
-    // Find daybook for this date using proper date range query
+    // Find or create daybook
     let dayBook = await DayBook.findOne({ 
       date: {
         $gte: startOfDay,
         $lte: endOfDay
       }
-    });
+    }).session(session);
 
     if (!dayBook) {
-      dayBook = new DayBook({
+      dayBook = await DayBook.create([{
         date: startOfDay,
         collections: [],
         transactions: [],
-        summary: { totalMilk: 0, totalEggs: 0, totalPayments: 0 }
-      });
+        summary: { totalCollections: 0 }
+      }], { session });
+      dayBook = dayBook[0];
     }
 
-    // Add collection
+    // Get product and update stock
+    const product = await Product.findById(productId).session(session);
+    if (!product) {
+      throw new Error(`Product not found`);
+    }
+
+    const previousStock = product.currentStock;
+    const newStock = previousStock + Number(quantity);
+
+    // Update product stock
+    await Product.findByIdAndUpdate(
+      productId,
+      { $set: { currentStock: newStock } },
+      { session }
+    );
+
+    // Create stock movement
+    await StockMovement.create([{
+      product: productId,
+      date: exactTime,
+      transactionType: 'Collection',
+      quantity: Number(quantity),
+      unit: product.unit,
+      previousStock,
+      currentStock: newStock,
+      unitPrice: product.price,
+      createdBy: req.user._id,
+      reference: {
+        type: 'Collection',
+        id: dayBook._id
+      }
+    }], { session });
+
+    // Add collection to daybook
     dayBook.collections.push({
-      type,
-      quantity,
+      product: productId,
+      quantity: Number(quantity),
       shift,
       createdAt: exactTime
     });
 
-    // Update summary
-    if (type === 'milk') {
-      dayBook.summary.totalMilk += Number(quantity);
-    } else if (type === 'eggs') {
-      dayBook.summary.totalEggs += Number(quantity);
-    }
+    // Update daybook summary
+    dayBook.summary.totalCollections = (dayBook.summary.totalCollections || 0) + Number(quantity);
+    await dayBook.save({ session });
 
-    // Update product stock
-    const product = await Product.findOne({ type });
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: `Product of type ${type} not found` 
-      });
-    }
+    await session.commitTransaction();
 
-    const previousStock = product.currentStock;
-    product.currentStock += Number(quantity);
-
-    // Add to stock history
-    product.stockHistory.push({
-      date: exactTime,
-      transactionType: 'collection',
-      quantity: Number(quantity),
-      previousStock,
-      currentStock: product.currentStock,
-      shift,
-      dayBookEntryId: dayBook._id
-    });
-
-    await product.save();
-    console.log('Product updated successfully');
-
-    // Save the daybook
-    await dayBook.save();
-    console.log('Daybook saved successfully');
-
-    // Fetch the updated daybook to confirm changes
-    const updatedDayBook = await DayBook.findById(dayBook._id)
-      .populate('collections');
-      
-    console.log('Final daybook state:', updatedDayBook);
-
-    res.json({ 
-      success: true, 
-      data: updatedDayBook,
-      message: 'Collection recorded successfully'
+    res.status(201).json({
+      success: true,
+      data: {
+        dayBook,
+        message: 'Collection added successfully'
+      }
     });
 
   } catch (error) {
-    console.error('Error in addCollection:', error);
-    res.status(400).json({ 
-      success: false, 
-      message: error.message || 'Failed to record collection'
+    await session.abortTransaction();
+    res.status(400).json({
+      success: false,
+      message: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 

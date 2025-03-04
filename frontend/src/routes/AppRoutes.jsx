@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Users from '../pages/Users';
+import SalesLedger from '../pages/accounts/SalesLedger';
+import AccountLedger from '../pages/accounts/AccountLedger';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -42,6 +44,16 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/accounts/:accountId/ledger"
+        element={
+          <ProtectedRoute>
+            <AccountLedger />
+          </ProtectedRoute>
+        }
+      />
+
+      
       
       {/* Default route */}
       <Route 
@@ -52,6 +64,7 @@ const AppRoutes = () => {
             : <Navigate to="/login" replace />
         } 
       />
+      
 
       {/* Catch all route */}
       <Route 
@@ -63,6 +76,8 @@ const AppRoutes = () => {
         }
       />
     </Routes>
+
+   
   );
 };
 

@@ -23,10 +23,10 @@ const generateInvoiceP = async (invoiceData, companyDetails) => {
             margin: 50
         });
 
-        const sanitizedInvoiceNumber = invoiceData.invoiceNumber.replace(/[^a-zA-Z0-9-]/g, '');
+        const sanitizedSaleNumber = invoiceData.saleNumber.replace(/[^a-zA-Z0-9-]/g, '');
         
         // Use absolute path for file creation
-        const filePath = path.join(invoicesDir, `invoice-${sanitizedInvoiceNumber}.pdf`);
+        const filePath = path.join(invoicesDir, `invoice-${sanitizedSaleNumber}.pdf`);
         console.log('Generating PDF at:', filePath);
 
         const writeStream = fs.createWriteStream(filePath);
@@ -35,7 +35,7 @@ const generateInvoiceP = async (invoiceData, companyDetails) => {
         return new Promise((resolve, reject) => {
             writeStream.on('finish', () => {
                 // Generate public URL
-                const publicUrl = `${process.env.BASE_URL || `http://localhost:${PORT}`}/uploads/invoices/invoice-${sanitizedInvoiceNumber}.pdf`;
+                const publicUrl = `${process.env.BASE_URL || `http://localhost:${PORT}`}/uploads/invoices/invoice-${sanitizedSaleNumber}.pdf`;
                 console.log('PDF generated successfully. Public URL:', publicUrl);
                 resolve({ filePath, publicUrl });
             });
@@ -83,7 +83,7 @@ const generateInvoiceP = async (invoiceData, companyDetails) => {
             // Invoice Details (Right side)
             doc.font('Helvetica-Bold')
                .fontSize(10)
-               .text(`Invoice No: ${invoiceData.invoiceNumber}`, 350, 130)
+               .text(`Invoice No: ${invoiceData.saleNumber}`, 350, 130)
                .text(`Date: ${invoiceData?.date}`, 350, 145)
                .moveDown()
                .text('Party Details:', 350, 170)
@@ -223,7 +223,7 @@ const generateInvoicePDF = async (invoice, companyDetails) => {
         
         // Format the data for PDF generation
         const invoiceData = {
-            invoiceNumber: invoice.invoiceNumber,
+            saleNumber: invoice.saleNumber,
             date: new Date().toLocaleDateString('en-IN'),
             customerName: invoice.customer.name,
             customerPhone: invoice.customer.contactNumber,

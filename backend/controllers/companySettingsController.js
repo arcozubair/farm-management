@@ -24,7 +24,7 @@ exports.getSettings = async (req, res) => {
   }
 };
 
-exports.getNextInvoiceNumber = async (req, res) => {
+exports.getNextSaleNumber = async (req, res) => {
     try {
         const settings = await CompanySettings.findOne();
         if (!settings) {
@@ -33,17 +33,17 @@ exports.getNextInvoiceNumber = async (req, res) => {
 
         console.log("ssss",settings);
 
-        const nextInvoiceNumber = settings.numberSequences.lastInvoiceNumber + 1;
-        const prefix = settings.prefixes.invoicePrefix;
+        const nextSaleNumber = settings.numberSequences.lastSaleNumber + 1;
+        const prefix = settings.prefixes.salePrefix;
         const year = new Date().getFullYear().toString().slice(-2);
         const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
         
-        const invoiceNumber = `${prefix}-${year}/${month}-${nextInvoiceNumber.toString().padStart(5, '0')}`;
+        const saleNumber = `${prefix}-${year}/${month}-${nextSaleNumber.toString().padStart(5, '0')}`;
 
         res.status(200).json({
             success: true,
             data: {
-                nextInvoiceNumber: invoiceNumber
+                nextSaleNumber: saleNumber
             }
         });
     } catch (error) {

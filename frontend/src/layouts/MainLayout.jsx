@@ -17,6 +17,7 @@ import {
   ListItemButton,
   ListItemText,
   useTheme,
+  Collapse,
 } from '@mui/material';
 import {
   SpaceDashboard as DashboardIcon,
@@ -31,12 +32,13 @@ import {
   ExitToApp as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useResponsive from '../hooks/useResponsive';
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 250;
 const CLOSED_DRAWER_WIDTH = 80;
 
 const MainLayout = ({ children }) => {
@@ -48,6 +50,7 @@ const MainLayout = ({ children }) => {
   const [open, setOpen] = useState(true);
   const { isMobile, isTablet } = useResponsive();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openSubMenus, setOpenSubMenus] = useState({});
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -69,6 +72,10 @@ const MainLayout = ({ children }) => {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    console.log('Open submenus:', openSubMenus);
+  }, [openSubMenus]);
+
   const menuItems = [
     { 
       path: '/dashboard', 
@@ -89,12 +96,44 @@ const MainLayout = ({ children }) => {
       iconColor: '#ff9800'
     },
     { 
-      path: '/customers', 
-      label: 'Customers', 
-      icon: '/icons/customers.png',
+      path: '/daybook', 
+      label: 'Day Book', 
+      icon: '/icons/book.png',
       role: 'admin',
-      iconColor: '#e91e63'
+      iconColor: '#00bcd4'
     },
+    { 
+      path: '/accounts',
+      label: 'Accounts',
+      icon: '/icons/account.png',
+      role: 'admin',
+      iconColor: '#00bcd4',
+      hasSubMenu: true,
+      subItems: [
+        {
+          path: '/accounts/create',
+          label: 'Create Account',
+        },
+        {
+          path: '/accounts/listAccounts',
+          label: 'Show All Accounts',
+        }
+      ]
+    },
+    { 
+      path: '/payments',
+      label: 'Payments',
+      icon: '/icons/payment.png',
+      role: 'admin',
+      iconColor: '#9c27b0'
+    },
+    // { 
+    //   path: '/customers', 
+    //   label: 'Customers', 
+    //   icon: '/icons/customers.png',
+    //   role: 'admin',
+    //   iconColor: '#e91e63'
+    // },
     { 
       path: '/sales', 
       label: 'Sales', 
@@ -102,12 +141,12 @@ const MainLayout = ({ children }) => {
       iconColor: '#9c27b0'
     },
     { 
-      path: '/daybook', 
-      label: 'Day Book', 
-      icon: '/icons/book.png',
-      role: 'admin',
-      iconColor: '#00bcd4'
+      path: '/purchases', 
+      label: 'Purchases', 
+      icon: '/icons/purchases.png',
+      iconColor: '#795548'
     },
+    
     { 
       path: '/users', 
       label: 'Users', 
@@ -145,7 +184,12 @@ const MainLayout = ({ children }) => {
     logout();
   };
 
- 
+  const handleSubMenuToggle = (path) => {
+    setOpenSubMenus(prev => ({
+      ...prev,
+      [path]: !prev[path]
+    }));
+  };
 
   return (
     isAuthenticated ? (
@@ -347,81 +391,134 @@ const MainLayout = ({ children }) => {
             )}
           </Box>
 
-          {/* Navigation Items */}
           <List sx={{ mt: 3, px: 2, flex: 1 }}>
             {menuItems.map((item) => {
               if (item.role && user?.role !== item.role) return null;
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path || 
+                             (item.subItems?.some(sub => location.pathname === sub.path));
 
               return (
-                <ListItem key={item.path} disablePadding sx={{ display: 'block', mb: 1 }}>
-                  <ListItemButton
-                    onClick={() => {
-                      navigate(item.path);
-                      if (isMobile) {
-                        setOpen(false);
-                        handleDrawerToggle();
-                      }
-                    }}
-                    sx={{
-                      minHeight: 48,
-                      minWidth: { xs: '100%', md: 200 },
-                      width: '100%',
-                      px: 2.5,
-                      py: 1.5,
-                      borderRadius: 3,
-                      backgroundColor: isActive ? 'primary.main' : 'transparent',
-                      boxShadow: isActive ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-                      '&:hover': {
-                        backgroundColor: isActive ? 'primary.dark' : 'rgba(0, 0, 0, 0.03)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      },
-                      transition: 'all 0.2s ease-in-out',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: open ? 'flex-start' : 'center',
-                    }}
-                  >
-                    <ListItemIcon
+                <React.Fragment key={item.path}>
+                  <ListItem disablePadding sx={{ display: 'block', mb: item.hasSubMenu ? 0 : 1 }}>
+                    <ListItemButton
+                      onClick={() => {
+                        if (item.hasSubMenu) {
+                          handleSubMenuToggle(item.path);
+                        } else {
+                          navigate(item.path);
+                          if (isMobile) {
+                            setOpen(false);
+                            handleDrawerToggle();
+                          }
+                        }
+                      }}
                       sx={{
-                        minWidth: 0,
-                        mr: open ? 2 : 'auto',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease-in-out',
-                        '& img': {
-                          width: '28px',
-                          height: '28px',
-                          transition: 'transform 0.2s ease-in-out',
-                        
+                        minHeight: 48,
+                        minWidth: { xs: '100%', md: 200 },
+                        width: '100%',
+                        px: 2.5,
+                        py: 1.5,
+                        borderRadius: 3,
+                        backgroundColor: isActive ? 'primary.main' : 'transparent',
+                        boxShadow: isActive ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                        '&:hover': {
+                          backgroundColor: isActive ? 'primary.dark' : 'rgba(0, 0, 0, 0.03)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                         },
                       }}
                     >
-                      <img src={item.icon} alt={item.label} />
-                    </ListItemIcon>
-                    {open && (
-                      <ListItemText
-                        primary={item.label}
-                        sx={{
-                          opacity: open ? 1 : 0,
-                          flex: 'none',
-                          minWidth: 100,
-                          '& .MuiTypography-root': {
-                            fontWeight: 600,
-                            letterSpacing: '-0.3px',
-                            color: isActive ? 'common.white' : 'text.primary',
-                            transition: 'color 0.2s ease-in-out',
-                            whiteSpace: 'nowrap',
-                          },
-                        }}
-                      />
-                    )}
-                  </ListItemButton>
-                </ListItem>
+                      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: 2,
+                              mr: 2,
+                              backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.02)',
+                            }}
+                          >
+                            <img
+                              src={item.icon}
+                              alt={item.label}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                              }}
+                            />
+                          </Box>
+                          {open && (
+                            <ListItemText
+                              primary={item.label}
+                              sx={{
+                                '& .MuiTypography-root': {
+                                  fontWeight: 500,
+                                  color: isActive ? 'common.white' : 'text.primary',
+                                },
+                              }}
+                            />
+                          )}
+                        </Box>
+                        {item.hasSubMenu && open && (
+                          <KeyboardArrowDownIcon 
+                            sx={{ 
+                              transform: openSubMenus[item.path] ? 'rotate(180deg)' : 'rotate(0)',
+                              transition: 'transform 0.3s',
+                              color: isActive ? 'common.white' : 'text.primary',
+                            }} 
+                          />
+                        )}
+                      </Box>
+                    </ListItemButton>
+                  </ListItem>
+
+                  {/* Render SubItems if they exist */}
+                  {item.hasSubMenu && open && (
+                    <Collapse in={openSubMenus[item.path]} timeout="auto" unmountOnExit>
+                      <List sx={{ pl: 4 }}>
+                        {item.subItems.map((subItem) => (
+                          <ListItem key={subItem.path} disablePadding sx={{ display: 'block', mb: 1 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                navigate(subItem.path);
+                                if (isMobile) {
+                                  setOpen(false);
+                                  handleDrawerToggle();
+                                }
+                              }}
+                              sx={{
+                                minHeight: 40,
+                                borderRadius: 2,
+                                backgroundColor: location.pathname === subItem.path ? 'rgba(33, 150, 243, 0.08)' : 'transparent',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                                },
+                              }}
+                            >
+                              <ListItemText
+                                primary={subItem.label}
+                                sx={{
+                                  '& .MuiTypography-root': {
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    color: location.pathname === subItem.path ? 'primary.main' : 'text.secondary',
+                                  },
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Collapse>
+                  )}
+                </React.Fragment>
               );
             })}
           </List>
-
           {/* Profile Section in Sidebar for Mobile - Moved to bottom */}
           {isMobile && (
             <Box sx={{ 
@@ -492,4 +589,4 @@ const MainLayout = ({ children }) => {
   );
 };
 
-export default MainLayout; 
+export default MainLayout;

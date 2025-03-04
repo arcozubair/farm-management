@@ -8,17 +8,26 @@ import {
   Select,
   TextField,
   Typography,
-  Paper
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton
 } from '@mui/material';
-import { productService } from '../services/productService';
+import CloseIcon from '@mui/icons-material/Close';
+import * as productService from '../services/productService';
+import { useSnackbar } from 'notistack';
 
-const AddProduct = () => {
+const AddProduct = ({ open, onClose, onSuccess }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const [formData, setFormData] = useState({
-    type: '',
-    quantity: ''
+    name: '',
+    category: '',
+    unit: '',
+    currentStock: 0,
+    price: 0,
+    description: ''
   });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,80 +35,135 @@ const AddProduct = () => {
       ...prev,
       [name]: value
     }));
-    // Clear messages when user starts typing
-    setError('');
-    setSuccess('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Basic validation
-      if (!formData.type || !formData.quantity) {
-        setError('Please fill in all fields');
-        return;
-      }
-
-      const response = await productService.addProduct(formData);
-      setSuccess('Product added successfully!');
-      setFormData({ type: '', quantity: '' }); // Reset form
-    } catch (err) {
-      setError(err.message || 'Failed to add product');
+      await productService.createProduct(formData);
+      enqueueSnackbar('Product added successfully', { variant: 'success' });
+      onSuccess();
+      handleReset();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to add product', { variant: 'error' });
     }
   };
 
+  const handleReset = () => {
+    setFormData({
+      name: '',
+      category: '',
+      unit: '',
+      currentStock: 0,
+      price: 0,
+      description: ''
+    });
+  };
+
   return (
-    <Paper elevation={3} sx={{ p: 3, maxWidth: 500, mx: 'auto' }}>
-      <Typography variant="h6" gutterBottom>
-        Add New Product
-      </Typography>
-
-      <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Product Type</InputLabel>
-          <Select
-            name="type"
-            value={formData.type}
-            label="Product Type"
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          Add New Product
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+          <TextField
+            fullWidth
+            label="Product Name"
+            name="name"
+            value={formData.name}
             onChange={handleChange}
-          >
-            <MenuItem value="milk">Milk</MenuItem>
-            <MenuItem value="eggs">Eggs</MenuItem>
-          </Select>
-        </FormControl>
+            margin="normal"
+            required
+          />
 
-        <TextField
-          fullWidth
-          label="Initial Quantity"
-          name="quantity"
-          type="number"
-          value={formData.quantity}
-          onChange={handleChange}
-          sx={{ mb: 2 }}
-        />
+          <TextField
+            fullWidth
+            label="Category"
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
 
-        {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            {error}
-          </Typography>
-        )}
+          <FormControl fullWidth margin="normal" required>
+            <InputLabel>Unit</InputLabel>
+            <Select
+              name="unit"
+              value={formData.unit}
+              label="Unit"
+              onChange={handleChange}
+            >
+              <MenuItem value="litre">Litre</MenuItem>
+              <MenuItem value="kg">Kilogram</MenuItem>
+              <MenuItem value="gram">Gram</MenuItem>
+              <MenuItem value="dozen">Dozen</MenuItem>
+              <MenuItem value="piece">Piece</MenuItem>
+              <MenuItem value="packet">Packet</MenuItem>
+            </Select>
+          </FormControl>
 
-        {success && (
-          <Typography color="success.main" sx={{ mb: 2 }}>
-            {success}
-          </Typography>
-        )}
+          <TextField
+            fullWidth
+            label="Initial Stock"
+            name="currentStock"
+            type="number"
+            value={formData.currentStock}
+            onChange={handleChange}
+            margin="normal"
+            inputProps={{ min: 0 }}
+          />
 
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          fullWidth
-        >
-          Add Product
-        </Button>
-      </Box>
-    </Paper>
+          <TextField
+            fullWidth
+            label="Price"
+            name="price"
+            type="number"
+            value={formData.price}
+            onChange={handleChange}
+            margin="normal"
+            required
+            inputProps={{ min: 0, step: 0.01 }}
+          />
+
+          <TextField
+            fullWidth
+            label="Description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            margin="normal"
+            multiline
+            rows={3}
+          />
+
+          <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={onClose}
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+            >
+              Add Product
+            </Button>
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 

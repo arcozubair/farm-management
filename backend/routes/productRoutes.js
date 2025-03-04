@@ -8,13 +8,20 @@ const {
   deleteProduct,
   updateStock,
   getProductDetails,
-  updatePrice
+  updatePrice,
+  getProductMovements,
+  getDailyStockReport
+  
 } = require('../controllers/productController');
 
 // Route order matters! Put specific routes before parameterized routes
 router.post('/update-price', protect, updatePrice);
-router.post('/updateStock', protect, updateStock);
+router.post('/update-stock', protect, updateStock);
 router.get('/details', protect, getProductDetails);
+router.get('/:productId/movements', protect, getProductMovements);
+router.get('/daily-report', protect, getDailyStockReport);
+
+
 
 router.route('/')
   .get(protect, getAllProducts)

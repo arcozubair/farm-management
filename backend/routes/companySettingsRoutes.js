@@ -4,7 +4,7 @@ const { protect } = require('../middleware/auth');
 const {
     getSettings,
     updateSettings,
-    getNextInvoiceNumber
+    getNextSaleNumber
 } = require('../controllers/companySettingsController');
 
 router.use(protect);
@@ -13,6 +13,6 @@ router.route('/')
     .get(getSettings)
     .put(updateSettings);
 
-router.get('/next-invoice-number', getNextInvoiceNumber);
+router.get('/next-sale-number', getNextSaleNumber);
 
 module.exports = router;

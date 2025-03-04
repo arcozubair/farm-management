@@ -3,7 +3,7 @@ const CompanySettings = require('../models/CompanySettings');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load env vars from the correct path
+// Loading env vars from the correct path
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const companyData = {
@@ -23,13 +23,19 @@ const companyData = {
   gstNumber: "29ABCDE1234F1Z5",
   numberSequences: {
     lastTransactionNumber: 0,
-    lastInvoiceNumber: 0,
-    lastReceiptNumber: 0
+    lastSaleNumber: 0,
+    lastPurchaseNumber: 0,
+    lastReceiptNumber: 0,
+    lastPaymentNumber: 0,
+    lastInvoiceNumber: 0
   },
   prefixes: {
     transactionPrefix: "TXN",
-    invoicePrefix: "INV",
-    receiptPrefix: "RCP"
+    salePrefix: "SALE",
+    purchasePrefix: "PUR",
+    receiptPrefix: "RCP",
+    paymentPrefix: "PAY",
+    invoicePrefix: "INV"
   }
 };
 

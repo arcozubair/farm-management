@@ -1,4 +1,6 @@
 const Livestock = require('../models/Livestock');
+const LivestockMovement = require('../models/LivestockMovement');
+const mongoose = require('mongoose');
 
 // Get all livestock
 exports.getAllLivestock = async (req, res) => {
@@ -16,10 +18,13 @@ exports.getAllLivestock = async (req, res) => {
   }
 };
 
-// Add new livestock
+// Add new livestock with initial stock movement
 exports.addLivestock = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { category, type, quantity, notes } = req.body;
+    const { category, type, quantity, price, notes } = req.body;
 
     // Validate type against predefined types
     const validTypes = Livestock.getTypes()[category];
@@ -30,38 +35,53 @@ exports.addLivestock = async (req, res) => {
       });
     }
 
-    const livestock = await Livestock.create({
+    // Create livestock
+    const livestock = await Livestock.create([{
       category,
       type,
       quantity,
+      price,
       notes
-    });
+    }], { session });
 
+    // Create initial stock movement
+    await LivestockMovement.create([{
+      livestock: livestock[0]._id,
+      date: new Date(),
+      transactionType: 'Initial',
+      quantity,
+      previousStock: 0,
+      currentStock: quantity,
+      reference: {
+        type: 'Purchase'
+      },
+      createdBy: req.user._id
+    }], { session });
+
+    await session.commitTransaction();
     res.status(201).json({
       success: true,
-      data: livestock
+      data: livestock[0]
     });
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       success: false,
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
 // Update livestock quantity
 exports.updateLivestock = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { quantity, notes } = req.body;
-    const livestock = await Livestock.findByIdAndUpdate(
-      req.params.id,
-      {
-        quantity,
-        notes,
-        lastUpdated: Date.now()
-      },
-      { new: true, runValidators: true }
-    );
+    const { quantity, notes, transactionType } = req.body;
+    const livestock = await Livestock.findById(req.params.id).session(session);
 
     if (!livestock) {
       return res.status(404).json({
@@ -70,12 +90,80 @@ exports.updateLivestock = async (req, res) => {
       });
     }
 
+    const previousStock = livestock.quantity;
+    let newStock = previousStock;
+
+    // Calculate new stock based on transaction type
+    switch (transactionType) {
+      case 'purchase':
+        newStock += Number(quantity);
+        break;
+      case 'sale':
+        if (previousStock < quantity) {
+          throw new Error(`Insufficient stock for ${livestock.type}`);
+        }
+        newStock -= Number(quantity);
+        break;
+      case 'death':
+        if (previousStock < quantity) {
+          throw new Error(`Insufficient stock for ${livestock.type}`);
+        }
+        newStock -= Number(quantity);
+        break;
+      case 'birth':
+        newStock += Number(quantity);
+        break;
+      default:
+        throw new Error('Invalid transaction type');
+    }
+
+    // Create stock movement record
+    await LivestockMovement.create([{
+      livestock: livestock._id,
+      date: new Date(),
+      transactionType,
+      quantity,
+      previousStock,
+      currentStock: newStock,
+      createdBy: req.user._id
+    }], { session });
+
+    // Update livestock quantity and notes
+    livestock.quantity = newStock;
+    if (notes) livestock.notes = notes;
+
+    await livestock.save({ session });
+    await session.commitTransaction();
+
     res.status(200).json({
       success: true,
       data: livestock
     });
   } catch (error) {
-    res.status(500).json({
+    await session.abortTransaction();
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+// Get livestock movements history
+exports.getLivestockMovements = async (req, res) => {
+  try {
+    const { livestockId } = req.params;
+    const movements = await LivestockMovement.find({ livestock: livestockId })
+      .sort({ date: -1 })
+      .populate('createdBy', 'name');
+
+    res.status(200).json({
+      success: true,
+      data: movements
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
       error: error.message
     });
@@ -84,8 +172,11 @@ exports.updateLivestock = async (req, res) => {
 
 // Delete livestock
 exports.deleteLivestock = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const livestock = await Livestock.findByIdAndDelete(req.params.id);
+    const livestock = await Livestock.findById(req.params.id).session(session);
 
     if (!livestock) {
       return res.status(404).json({
@@ -94,15 +185,25 @@ exports.deleteLivestock = async (req, res) => {
       });
     }
 
+    // Delete associated movements
+    await LivestockMovement.deleteMany({ livestock: livestock._id }, { session });
+    
+    // Delete livestock
+    await livestock.deleteOne({ session });
+
+    await session.commitTransaction();
     res.status(200).json({
       success: true,
       data: {}
     });
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       success: false,
       error: 'Server Error'
     });
+  } finally {
+    session.endSession();
   }
 };
 

@@ -16,6 +16,11 @@ import DayBook from './pages/DayBook';
 import CustomerLedger from './components/customer/CustomerLedger';
 import theme from './theme';
 import Settings from './pages/Settings';
+import CreateAccount from './pages/accounts/CreateAccount';
+import ListAccounts from './pages/accounts/ListAccounts';
+import AccountLedger from './pages/accounts/AccountLedger';
+import Purchases from './pages/purchases/Purchases';
+import Payments from './pages/payments/Payments';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -76,6 +81,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/purchases"
+          element={
+            <ProtectedRoute>
+              <Purchases />
+            </ProtectedRoute>
+          }
+        />
          <Route
           path="/daybook"
           element={
@@ -124,7 +138,15 @@ function App() {
 
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/customers/:customerId/ledger" element={<CustomerLedger />} />
+        <Route path="/accounts/create" element={<CreateAccount />} />
+
+        <Route path="/accounts/listAccounts" element={<ListAccounts />} />
+        <Route path="/accounts/:accountId/ledger" element={<AccountLedger />} />
+
+        <Route path="/payments" element={<Payments />} />
+
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
       </Routes>
     </ThemeProvider>
   );

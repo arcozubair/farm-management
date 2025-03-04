@@ -46,7 +46,7 @@ import useResponsiveness from '../hooks/useResponsive';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
-import { getInvoicesByDate } from '../services/invoiceService';
+import { getSalesByDate } from '../services/saleServices';
 import {
   ShoppingCart as ShoppingCartIcon,
   PointOfSale as PointOfSaleIcon,
@@ -57,6 +57,8 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PrintInvoice from '../components/PrintInvoice';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import GroupInvoiceDialog from '../components/GroupInvoiceDialog';
+import * as productService from '../services/productService';
+import AddPaymentDialog from '../components/AddPaymentDialog';
 
 const determineShift = () => {
   const currentHour = new Date().getHours();
@@ -79,7 +81,7 @@ const DayBook = () => {
     quantity: '',
     shift: determineShift()
   });
-  const [transactionForm, setTransactionForm] = useState({
+  const [paymentForm, setPaymentForm] = useState({
     customerId: '',
     amountPaid: '',
     paymentMode: 'cash'
@@ -100,11 +102,13 @@ const DayBook = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printInvoiceOpen, setPrintInvoiceOpen] = useState(false);
   const [groupInvoiceOpen, setGroupInvoiceOpen] = useState(false);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     fetchDayBook();
     fetchCustomers();
     fetchInvoices(selectedDate);
+    fetchProducts();
   }, [selectedDate]);
 
   useEffect(() => {
@@ -146,7 +150,7 @@ const DayBook = () => {
   const fetchInvoices = async (date) => {
     setLoadingInvoices(true);
     try {
-      const response = await getInvoicesByDate(date);
+      const response = await getSalesByDate(date);
       setInvoices(response.data || []);
       console.log('Invoices111:', response.data);
     } catch (error) {
@@ -154,6 +158,17 @@ const DayBook = () => {
       enqueueSnackbar('Failed to fetch invoices', { variant: 'error' });
     } finally {
       setLoadingInvoices(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const response = await productService.getAllProducts();
+      if (response.success) {
+        setProducts(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
     }
   };
 
@@ -189,15 +204,24 @@ const DayBook = () => {
   const handleCustomerChange = (customerId) => {
     const customer = customers.find(c => c._id === customerId);
     setSelectedCustomer(customer);
-    setTransactionForm(prev => ({ ...prev, customerId }));
+    setPaymentForm(prev => ({ ...prev, customerId }));
   };
 
   const handleAddCollection = async () => {
     try {
-      const response = await dayBookService.addCollection({
+      const selectedProduct = products.find(p => p._id === collectionForm.productId);
+      if (!selectedProduct) {
+        throw new Error('Please select a product');
+      }
+
+      const response = await productService.updateStock({
+        productId: collectionForm.productId,
+        quantity: collectionForm.quantity,
         date: selectedDate,
-        ...collectionForm
+        shift: collectionForm.shift,
+        transactionType: 'Collection'
       });
+
       if (response.success) {
         enqueueSnackbar('Collection added successfully', { variant: 'success' });
         handleClose();
@@ -208,19 +232,19 @@ const DayBook = () => {
     }
   };
 
-  const handleAddTransaction = async () => {
+  const handleAddPayment = async () => {
     try {
       const response = await dayBookService.addTransaction({
         date: selectedDate,
-        ...transactionForm
+        ...paymentForm
       });
       if (response.success) {
-        enqueueSnackbar('Transaction added successfully', { variant: 'success' });
+        enqueueSnackbar('Payment added successfully', { variant: 'success' });
         handleClose();
         fetchDayBook();
       }
     } catch (error) {
-      enqueueSnackbar(error.message || 'Failed to add transaction', { variant: 'error' });
+      enqueueSnackbar(error.message || 'Failed to add payment', { variant: 'error' });
     }
   };
 
@@ -228,7 +252,7 @@ const DayBook = () => {
     setOpenDialog(false);
     setDialogType('');
     setCollectionForm({ type: 'milk', quantity: '', shift: determineShift() });
-    setTransactionForm({ customerId: '', amountPaid: '', paymentMode: 'cash' });
+    setPaymentForm({ customerId: '', amountPaid: '', paymentMode: 'cash' });
     setSelectedCustomer(null);
   };
 
@@ -284,7 +308,7 @@ const DayBook = () => {
       const [collectionsRes, transactionsRes, invoicesRes] = await Promise.all([
         dayBookService.getCollectionsByDate(selectedDate),
         dayBookService.getTransactionsByDate(selectedDate),
-        getInvoicesByDate(selectedDate)
+        getSalesByDate(selectedDate)
       ]);
 
       setEntries(collectionsRes.data || []);
@@ -392,11 +416,11 @@ const DayBook = () => {
                   </Button>
                 </Tooltip>
 
-                <Tooltip title={isMobile ? "Add Transaction" : ""}>
+                <Tooltip title={isMobile ? "Add Payment" : ""}>
                   <Button 
                     variant="contained"
                     onClick={() => {
-                      setDialogType('transaction');
+                      setDialogType('payment');
                       setOpenDialog(true);
                     }}
                     sx={{ 
@@ -411,7 +435,7 @@ const DayBook = () => {
                       <PaymentsOutlinedIcon />
                     ) : (
                       <>
-                        Add Transaction
+                        Add Payment
                       </>
                     )}
                   </Button>
@@ -794,7 +818,7 @@ const DayBook = () => {
                           <>
                             {invoices.map((invoice) => (
                               <TableRow key={invoice._id}>
-                                <TableCell>{invoice.invoiceNumber}</TableCell>
+                                <TableCell>{invoice.saleNumber}</TableCell>
                                 <TableCell>{invoice.customer?.name}</TableCell>
                                 <TableCell>
                                   {invoice.items.map(item => (
@@ -868,7 +892,7 @@ const DayBook = () => {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          {dialogType === 'collection' ? 'Add Collection' : 'Add Transaction'}
+          {dialogType === 'collection' ? 'Add Collection' : 'Add Payment'}
           {isMobile && (
             <IconButton onClick={handleClose} edge="end">
               <CloseIcon />
@@ -881,24 +905,48 @@ const DayBook = () => {
               <>
                 <Grid item xs={12}>
                   <FormControl fullWidth size={isMobile ? "small" : "medium"}>
-                    <InputLabel>Type</InputLabel>
+                    <InputLabel>Product</InputLabel>
                     <Select
-                      value={collectionForm.type}
+                      value={collectionForm.productId || ''}
                       onChange={(e) => setCollectionForm({
                         ...collectionForm,
-                        type: e.target.value
+                        productId: e.target.value,
+                        quantity: '' // Reset quantity when product changes
                       })}
                     >
-                      <MenuItem value="milk">Milk</MenuItem>
-                      <MenuItem value="eggs">Eggs</MenuItem>
+                      {products.map((product) => (
+                        <MenuItem key={product._id} value={product._id}>
+                          {product.name} ({product.unit})
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12}>
-                  <FormControl fullWidth size={isMobile ? "small" : "medium"} disabled>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Quantity"
+                    value={collectionForm.quantity}
+                    onChange={(e) => setCollectionForm({
+                      ...collectionForm,
+                      quantity: e.target.value
+                    })}
+                    InputProps={{
+                      endAdornment: products.find(p => p._id === collectionForm.productId)?.unit
+                    }}
+                    size={isMobile ? "small" : "medium"}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControl fullWidth size={isMobile ? "small" : "medium"}>
                     <InputLabel>Shift</InputLabel>
                     <Select
                       value={collectionForm.shift}
+                      onChange={(e) => setCollectionForm({
+                        ...collectionForm,
+                        shift: e.target.value
+                      })}
                       label="Shift"
                     >
                       <MenuItem value="morning">Morning</MenuItem>
@@ -906,142 +954,22 @@ const DayBook = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Quantity"
-                    type="number"
-                    size={isMobile ? "small" : "medium"}
-                    value={collectionForm.quantity}
-                    onChange={(e) => setCollectionForm({
-                      ...collectionForm,
-                      quantity: e.target.value
-                    })}
-                  />
-                </Grid>
               </>
             )}
 
-            {dialogType === 'transaction' && (
-              <>
-                <Grid item xs={12}>
-                  <Autocomplete
-                    fullWidth
-                    options={filteredCustomers}
-                    getOptionLabel={(option) => option.name || ''}
-                    loading={isSearching}
-                    inputValue={searchInputValue}
-                    onInputChange={(event, newInputValue) => {
-                      setSearchInputValue(newInputValue);
-                      if (newInputValue.length >= 2) {
-                        debouncedSearch(newInputValue);
-                      }
-                    }}
-                    onChange={(event, newValue) => {
-                      if (newValue) {
-                        handleCustomerChange(newValue._id);
-                      }
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Search Customer"
-                        variant="outlined"
-                        size={isMobile ? "small" : "medium"}
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {isSearching ? (
-                                <CircularProgress color="inherit" size={20} />
-                              ) : (
-                                <SearchIcon color="action" />
-                              )}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box>
-                          <Typography variant="body1">{option.name}</Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            Balance: ₹{option.currentBalance?.toFixed(2) || '0.00'}
-                          </Typography>
-                        </Box>
-                      </li>
-                    )}
-                    noOptionsText={
-                      searchInputValue.length < 2 
-                        ? "Type at least 2 characters to search" 
-                        : isSearching 
-                          ? "Searching..." 
-                          : "No customers found"
-                    }
-                  />
-                </Grid>
-
-                {selectedCustomer && (
-                  <>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Contact Number"
-                        value={selectedCustomer.contactNumber || 'N/A'}
-                        disabled
-                        variant="outlined"
-                        size={isMobile ? "small" : "medium"}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Previous Balance"
-                        value={selectedCustomer.currentBalance || 0}
-                        disabled
-                        size={isMobile ? "small" : "medium"}
-                      />
-                    </Grid>
-                  </>
-                )}
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Amount Paid"
-                    type="number"
-                    value={transactionForm.amountPaid}
-                    onChange={(e) => setTransactionForm({
-                      ...transactionForm,
-                      amountPaid: e.target.value
-                    })}
-                    size={isMobile ? "small" : "medium"}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <FormControl fullWidth size={isMobile ? "small" : "medium"}>
-                    <InputLabel>Payment Mode</InputLabel>
-                    <Select
-                      value={transactionForm.paymentMode}
-                      onChange={(e) => setTransactionForm({
-                        ...transactionForm,
-                        paymentMode: e.target.value
-                      })}
-                    >
-                      <MenuItem value="cash">Cash</MenuItem>
-                      <MenuItem value="account_transfer">Account Transfer</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </>
+            {dialogType === 'payment' && (
+              <AddPaymentDialog
+                open={dialogType === 'payment'}
+                onClose={handleClose}
+                onSuccess={fetchDayBook}
+              />
             )}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           {!isMobile && <Button onClick={handleClose}>Cancel</Button>}
           <Button 
-            onClick={dialogType === 'collection' ? handleAddCollection : handleAddTransaction}
+            onClick={dialogType === 'collection' ? handleAddCollection : handleAddPayment}
             variant="contained"
             fullWidth={isMobile}
           >

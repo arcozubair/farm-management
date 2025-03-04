@@ -1,45 +1,61 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  customer: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Customer',
-    required: true 
-  },
-  invoice: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Invoice'
-  },
-  type: {
-    type: String,
-    enum: ['payment', 'purchase', 'refund'],
-    required: true
-  },
-  amount: { 
-    type: Number, 
-    required: true 
-  },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'bank', 'credit'],
-    required: true
-  },
-  notes: { 
-    type: String 
-  },
-  date: { 
-    type: Date, 
-    default: Date.now 
-  },
-  balanceAfterTransaction: { 
-    type: Number, 
-    required: true 
-  },
+description: {
+  type: String,
+},
+contextDescriptions: {
+  type: Map,
+  of: String
+},
+amount: {
+  type: Number,
+  required: true
+},
+debitAccount: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Account',
+  required: true
+},
+creditAccount: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Account',
+  required: true
+},  
+saleRef: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Sale',
+  optional: true
+},
+purchaseRef: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Purchase',
+  optional: true
+},
+expenseRef: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Expense',
+  optional: true
+},  
+collectionRef: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Collection',
+  optional: true
+},    
+deathRef: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Death',
+  optional: true
+}, 
+ date: {
+  type: Date,
+  required: true
+},
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User',
     required: true 
   }
-});
+},{timestamps: true});
 
 module.exports = mongoose.model('Transaction', transactionSchema); 

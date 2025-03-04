@@ -10,6 +10,7 @@ const saleRoutes = require('./routes/saleRoutes');
 const companySettingsRoutes = require('./routes/companySettingsRoutes');
 const path = require('path');
 const connectDB = require('./database/db.config.js');
+const accountRoutes = require('./routes/account.routes');
 
 const app = express();
 
@@ -51,8 +52,11 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/livestock', require('./routes/livestock'));
 app.use('/api/products', productRoutes);
 app.use('/api/daybook', require("./routes/dayBookRoutes"));
-app.use('/api/invoices', saleRoutes);
+app.use('/api/sales', saleRoutes);
 app.use('/api/company-settings', companySettingsRoutes);
+app.use("/api/accounts", accountRoutes);
+app.use('/api/purchases', require('./routes/purchase.routes'));
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

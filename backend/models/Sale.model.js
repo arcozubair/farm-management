@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
 
 const saleSchema = new mongoose.Schema({
-    invoiceNumber: {
+    saleNumber: {
         type: String,
         required: true,
         unique: true
+    },
+   
+    date: {
+        type: Date,
+        default: Date.now
     },
     customer: {
         type: mongoose.Schema.Types.ObjectId,
@@ -14,19 +19,23 @@ const saleSchema = new mongoose.Schema({
     items: [{
         itemId: {
             type: mongoose.Schema.Types.ObjectId,
-            refPath: 'items.itemType'
-        },
-        itemType: {
-            type: String,
-            enum: ['Product', 'Livestock'],
+            ref: 'Item',
             required: true
         },
-        name: String,
-        quantity: Number,
-        price: Number,
-        total: Number,
-        weight: Number,
-        unit: String
+        quantity: {
+            type: Number,
+            required: true
+        },
+        rate: {
+            type: Number,
+            required: true,
+            default: 0
+        },
+        amount: {
+            type: Number,
+            required: true,
+            default: 0
+        }
     }],
     grandTotal: {
         type: Number,
@@ -57,14 +66,18 @@ const saleSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
-    }
+    },
+    transactions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Transaction'
+    }]
 }, {
     timestamps: true
 });
 
 // Add indexes for better query performance
-saleSchema.index({ invoiceNumber: 1 });
+saleSchema.index({ saleNumber: 1 });
 saleSchema.index({ customer: 1 });
 saleSchema.index({ createdAt: 1 });
 
-module.exports = mongoose.models.Sales || mongoose.model('Sales', saleSchema);
+module.exports = mongoose.model('Sale', saleSchema);
