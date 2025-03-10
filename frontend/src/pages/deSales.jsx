@@ -14,7 +14,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import DataTable from '../components/DataTable';
 import { useSnackbar } from 'notistack';
 import  * as saleService from '../services/saleServices';
-import AddSaleDialog from '../components/AddSaleDialog';
+import AddTransactionDialog from '../components/deAddTransactionDialog';
 import useResponsiveness from '../hooks/useResponsive';
 
 const Sales = () => {
@@ -146,9 +146,10 @@ const handleCloseSaleDialog = () => {
         columns={columns}
         loading={loading}
       />
-        <AddSaleDialog
+        <AddTransactionDialog
         open={saleDialogOpen}
-        onClose={() => handleCloseSaleDialog()}
+        onClose={handleCloseSaleDialog}
+        type="sale"
       />
     </Box>
     

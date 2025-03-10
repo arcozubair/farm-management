@@ -35,7 +35,7 @@ const purchaseSchema = new Schema({
             min: 0
         },
         unit: String,
-        price: {
+        rate: {
             type: Number,
             required: true,
             min: 0

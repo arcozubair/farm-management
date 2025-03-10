@@ -23,9 +23,9 @@ const validationSchema = Yup.object({
       quantity: Yup.number()
         .required('Quantity is required')
         .min(1, 'Quantity must be at least 1'),
-      unitPrice: Yup.number()
-        .required('Unit price is required')
-        .min(0, 'Unit price must be positive'),
+      unitRate: Yup.number()
+        .required('Unit rate is required')
+        .min(0, 'Unit rate must be positive'),
     })
   ),
   paymentMethod: Yup.string().required('Payment method is required'),
@@ -38,7 +38,7 @@ const InvoiceForm = ({ open, onClose, onSubmit, customers, livestock, products }
   const formik = useFormik({
     initialValues: {
       customer: '',
-      items: [{ itemType: '', item: '', quantity: 1, unitPrice: 0 }],
+      items: [{ itemType: '', item: '', quantity: 1, unitRate: 0 }],
       paymentMethod: 'cash',
       paidAmount: 0,
       notes: '',
@@ -59,7 +59,7 @@ const InvoiceForm = ({ open, onClose, onSubmit, customers, livestock, products }
   const addItem = () => {
     formik.setFieldValue('items', [
       ...formik.values.items,
-      { itemType: '', item: '', quantity: 1, unitPrice: 0 },
+      { itemType: '', item: '', quantity: 1, unitRate: 0 },
     ]);
   };
 
@@ -125,18 +125,18 @@ const InvoiceForm = ({ open, onClose, onSubmit, customers, livestock, products }
                           : products.find(p => p._id === e.target.value);
                         
                         formik.setFieldValue(`items.${index}.item`, e.target.value);
-                        formik.setFieldValue(`items.${index}.unitPrice`, selectedItem?.price || 0);
+                        formik.setFieldValue(`items.${index}.unitRate`, selectedItem?.rate || 0);
                       }}
                     >
                       {item.itemType === 'livestock'
                         ? livestock.map((l) => (
                             <MenuItem key={l._id} value={l._id}>
-                              {l.type} - {l.gender} (Rate: ${l.price})
+                              {l.type} - {l.gender} (Rate: ${l.rate})
                             </MenuItem>
                           ))
                         : products.map((p) => (
                             <MenuItem key={p._id} value={p._id}>
-                              {p.type} (Rate: ${p.price})
+                              {p.type} (Rate: ${p.rate})
                             </MenuItem>
                           ))}
                     </TextField>
@@ -155,9 +155,9 @@ const InvoiceForm = ({ open, onClose, onSubmit, customers, livestock, products }
                     <TextField
                       fullWidth
                       type="number"
-                      name={`items.${index}.unitPrice`}
+                      name={`items.${index}.unitRate`}
                       label="Unit Price"
-                      value={item.unitPrice}
+                      value={item.unitRate}
                       onChange={formik.handleChange}
                     />
                   </Grid>

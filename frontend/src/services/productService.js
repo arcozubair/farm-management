@@ -72,10 +72,10 @@ export const updateStock = async (data) => {
 // Update product prices
 export const updateProductPrices = async (prices) => {
   try {
-    const promises = Object.entries(prices).map(([id, price]) => 
+    const promises = Object.entries(prices).map(([id, rate]) => 
       api.post(
-        `/products/update-price`,
-        { id, price }
+        `/products/update-rate`,
+        { id, rate }
       )
     );
     

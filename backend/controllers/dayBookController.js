@@ -6,6 +6,7 @@ const Product = require('../models/Product');
 const Sale = require('../models/Sale.model');
 const StockMovement = require('../models/StockMovement');
 const mongoose = require('mongoose');
+const Transaction = require('../models/Transaction');
 
 exports.addTransaction = async (req, res) => {
   try {
@@ -172,7 +173,7 @@ exports.addCollection = async (req, res) => {
       unit: product.unit,
       previousStock,
       currentStock: newStock,
-      unitPrice: product.price,
+      unitRate: product.rate,
       createdBy: req.user._id,
       reference: {
         type: 'Collection',
@@ -239,6 +240,136 @@ exports.getEntries = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+
+exports.getDayBookReport = async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+
+      // Validate dates
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide both startDate and endDate'
+        });
+      }
+
+      // Convert dates to proper format
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include full end day
+
+      // Query transactions
+      const transactions = await Transaction.find({
+        date: {
+          $gte: start,
+          $lte: end
+        }
+      })
+      .populate('debitAccount', 'name code')  // Populate debit account details
+      .populate('creditAccount', 'name code') // Populate credit account details
+      .populate('saleRef', 'voucherNo')       // Populate sale reference
+      .populate('purchaseRef', 'voucherNo')   // Populate purchase reference
+      .populate('expenseRef', 'voucherNo')    // Populate expense reference
+      .populate('collectionRef', 'voucherNo') // Populate collection reference
+      .sort({ date: 1 });                     // Sort by date ascending
+
+      // Format the response for Day Book
+      const dayBookData = transactions.map(transaction => {
+        // Determine voucher type and number
+        let voucherType = '';
+        let voucherNo = '';
+        
+        if (transaction.saleRef) {
+          voucherType = 'Sale';
+          voucherNo = transaction.saleRef.voucherNo || `SALE-${transaction._id.toString().slice(-6)}`;
+        } else if (transaction.purchaseRef) {
+          voucherType = 'Purchase';
+          voucherNo = transaction.purchaseRef.voucherNo || `PUR-${transaction._id.toString().slice(-6)}`;
+        } else if (transaction.expenseRef) {
+          voucherType = 'Expense';
+          voucherNo = transaction.expenseRef.voucherNo || `EXP-${transaction._id.toString().slice(-6)}`;
+        } else if (transaction.collectionRef) {
+          voucherType = 'Collection';
+          voucherNo = transaction.collectionRef.voucherNo || `COL-${transaction._id.toString().slice(-6)}`;
+        } else {
+          voucherType = 'Journal';
+          voucherNo = `JRN-${transaction._id.toString().slice(-6)}`;
+        }
+
+        // Get particulars from contextDescriptions
+        const particulars = transaction.contextDescriptions 
+          ? Object.values(transaction.contextDescriptions)[0] || transaction.description
+          : transaction.description || 'No description';
+
+        return {
+          effectiveDate: transaction.date,
+          particulars: particulars,
+          voucher: voucherType,
+          ledger: {
+            debit: transaction.debitAccount?.name || 'Unknown',
+            credit: transaction.creditAccount?.name || 'Unknown'
+          },
+          voucherNo: voucherNo,
+          drAmount: transaction.amount,  // Debit amount
+          crAmount: transaction.amount,  // Credit amount same as debit in this schema
+          action: 'View'  // Could be expanded to include edit/delete based on requirements
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: dayBookData,
+        totalRecords: dayBookData.length,
+        period: {
+          from: start,
+          to: end
+        }
+      });
+
+    } catch (error) {
+      console.error('Error generating day book report:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error generating day book report',
+        error: error.message
+      });
+    }
+  };
+
+exports.getTransactionDetails=async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const transaction = await Transaction.findById(id)
+      .populate('debitAccount', 'name code')
+      .populate('creditAccount', 'name code')
+      .populate('saleRef', 'voucherNo')
+      .populate('purchaseRef', 'voucherNo')
+      .populate('expenseRef', 'voucherNo')
+      .populate('collectionRef', 'voucherNo');
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: transaction
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching transaction details',
+      error: error.message
+    });
+  }
+};
+
+
 
 exports.getDayBook = async (req, res) => {
   try {

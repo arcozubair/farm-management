@@ -26,18 +26,17 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { styled } from '@mui/material/styles';
-import * as productService from '../services/productService';
-import * as livestockService from '../services/livestockService';
 import CloseIcon from '@mui/icons-material/Close';
-import useResponsiveness from '../hooks/useResponsive';
-import * as saleServices from '../services/saleServices';
+import { styled } from '@mui/material/styles';
+import * as productService from '../../services/productService';
+import * as livestockService from '../../services/livestockService';
+import useResponsiveness from '../../hooks/useResponsive';
+import * as saleServices from '../../services/saleServices';
 import { useSnackbar } from 'notistack';
-import * as companySettingsService from '../services/companySettingsService';
-import accountService from '../services/accountService';
+import * as companySettingsService from '../../services/companySettingsService';
+import accountService from '../../services/accountService';
 
-
-// Styled components for better appearance
+// Styled components
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
     backgroundColor: theme.palette.primary.main,
@@ -57,7 +56,7 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-const CreateInvoiceDialog = ({ open, onClose, customer }) => {
+const CreateSaleDialog = ({ open, onClose, customer }) => {
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [livestock, setLivestock] = useState([]);
@@ -65,10 +64,9 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const [selectedStock, setSelectedStock] = useState(null);
   const [error, setError] = useState('');
   const [saleNumber, setSaleNumber] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState(new Date());
-  const { isMobile, isTablet } = useResponsiveness();
-  const [itemType, setItemType] = useState('product'); // 'product' or 'livestock'
-
+  const [invoiceDate, setInvoiceDate] = useState( new Date().toISOString());
+  const { isMobile } = useResponsiveness();
+  const [itemType, setItemType] = useState('product');
   const [currentItem, setCurrentItem] = useState({
     id: '',
     name: '',
@@ -80,21 +78,17 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     remainingStock: 0,
     unit: ''
   });
-
-  // Create ref for the Autocomplete input
-  const autocompleteRef = React.useRef(null);
-
-  // Add ref for the item Autocomplete
-  const itemInputRef = React.useRef(null);
-
   const { enqueueSnackbar } = useSnackbar();
-
   const [paymentType, setPaymentType] = useState('credit');
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [paidAmount, setPaidAmount] = useState(0);
   const [previousBalance, setPreviousBalance] = useState(0);
 
+  const autocompleteRef = React.useRef(null);
+  const itemInputRef = React.useRef(null);
+
+  // Fetch products and livestock
   useEffect(() => {
     const fetchItems = async () => {
       setLoading(true);
@@ -105,31 +99,26 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           livestockService.getAllLivestock()
         ]);
 
-        // Handle products
         const productsData = Array.isArray(productsRes) ? productsRes : productsRes?.data || [];
         setProducts(productsData.map(p => ({
           ...p,
           name: p.name,
-          price: p.price || 0,
+          rate: p.rate || 0,
           type: 'product',
           remainingStock: p.currentStock,
           unit: p.unit || 'pcs'
         })));
 
-        // Handle livestock - adjust based on your API response structure
         const livestockData = livestockRes?.data?.data || livestockRes || [];
-        console.log('Raw livestock data:', livestockData);
-        
         setLivestock(livestockData.map(l => ({
           ...l,
           _id: l._id,
           name: `${l.category} - ${l.type}`,
-          price: l.price || 0,
+          rate: l.rate || 0,
           type: 'livestock',
           remainingStock: l.quantity || 0,
           unit: 'pcs'
         })));
-
       } catch (error) {
         console.error('Error fetching items:', error);
         setError('Failed to fetch items. Please try again.');
@@ -138,57 +127,38 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       }
     };
 
-    if (open) {
-      fetchItems();
-    }
+    if (open) fetchItems();
   }, [open]);
 
+  // Fetch sale number
   useEffect(() => {
     const fetchSaleNumber = async () => {
       try {
         const response = await companySettingsService.getNextSaleNumber();
-        if (response.success) {
-          setSaleNumber(response.data.nextSaleNumber);
-        }
-        console.log(response.data.nextSaleNumber);
+        if (response.success) setSaleNumber(response.data.nextSaleNumber);
       } catch (error) {
         console.error('Error fetching sale number:', error);
         enqueueSnackbar('Failed to fetch sale number', { variant: 'error' });
       }
     };
 
-    if (open) {
-      fetchSaleNumber();
-    }
-  }, [open]);
+    if (open) fetchSaleNumber();
+  }, [open, enqueueSnackbar]);
 
+  // Fetch accounts for payment
   useEffect(() => {
     const fetchAccounts = async () => {
       if (paymentType === 'payment') {
         try {
-          // First fetch Cash accounts
-          const cashResponse = await accountService.getAccounts({
-            accountType: 'Cash'
-          });
-          
-          // Then fetch Bank accounts
-          const bankResponse = await accountService.getAccounts({
-            accountType: 'Bank'
-          });
-          
-          // Combine both results
+          const cashResponse = await accountService.getAccounts({ accountType: 'Cash' });
+          const bankResponse = await accountService.getAccounts({ accountType: 'Bank' });
           const combinedAccounts = [
             ...(cashResponse.data || []),
             ...(bankResponse.data || [])
           ];
-
           if (combinedAccounts.length === 0) {
-            enqueueSnackbar('No cash or bank accounts found. Please create them first.', { 
-              variant: 'warning' 
-            });
-            return;
+            enqueueSnackbar('No cash or bank accounts found. Please create them first.', { variant: 'warning' });
           }
-          
           setAccounts(combinedAccounts);
         } catch (error) {
           console.error('Error fetching accounts:', error);
@@ -198,13 +168,15 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     };
 
     fetchAccounts();
-  }, [paymentType]);
+  }, [paymentType, enqueueSnackbar]);
 
+  // Fetch customer balance
   useEffect(() => {
     const fetchCustomerBalance = async () => {
-      if (customer?._id) {
+      const customerId = customer?._id;
+      if (customerId) {
         try {
-          const response = await accountService.getAccountBalance(customer._id);
+          const response = await accountService.getAccountBalance(customerId);
           setPreviousBalance(response.data.balance || 0);
         } catch (error) {
           console.error('Error fetching customer balance:', error);
@@ -212,18 +184,16 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       }
     };
 
-    fetchCustomerBalance();
-  }, [customer]);
+    if (open) fetchCustomerBalance();
+  }, [open, customer]);
 
-  // Add useEffect to focus on input when dialog opens
+  // Focus input on open
   useEffect(() => {
     if (open) {
       setTimeout(() => {
         if (itemInputRef.current) {
           const input = itemInputRef.current.querySelector('input');
-          if (input) {
-            input.focus();
-          }
+          if (input) input.focus();
         }
       }, 100);
     }
@@ -232,21 +202,15 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
   const updateItemCalculations = (field, value) => {
     setCurrentItem(prev => {
       const updates = { ...prev, [field]: value };
-      
-      // Calculate total based on weight first, then quantity
       if (field === 'quantity' || field === 'weight' || field === 'rate') {
         if (updates.weight > 0) {
-          // When weight exists, use weight-based calculation
           updates.total = (updates.weight * updates.rate).toFixed(2);
         } else if (updates.quantity > 0) {
-          // When no weight but quantity exists, use quantity-based calculation
           updates.total = (updates.quantity * updates.rate).toFixed(2);
         } else {
-          // If neither exists, set total to 0
           updates.total = 0;
         }
       }
-      
       return updates;
     });
   };
@@ -256,59 +220,49 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       setError('Please select an item');
       return false;
     }
-    
-    // Check if either weight or quantity is provided
     if (!currentItem.weight && !currentItem.quantity) {
       setError('Please provide either weight or quantity');
       return false;
     }
-    
     if (currentItem.weight < 0) {
       setError('Weight cannot be negative');
       return false;
     }
-    
     if (currentItem.quantity < 0) {
       setError('Quantity cannot be negative');
       return false;
     }
-    
     if (!currentItem.weight && currentItem.quantity > currentItem.remainingStock) {
       setError('Quantity cannot exceed available stock');
       return false;
     }
-    
     if (currentItem.rate <= 0) {
       setError('Rate must be greater than 0');
       return false;
     }
-    
     return true;
   };
 
   const handleItemSelect = (event, value) => {
     setError('');
     if (value) {
-      console.log('Selected stock item with unit:', value.unit);
       setSelectedStock(value);
       setCurrentItem({
         ...currentItem,
         id: value._id,
         productId: value._id,
         name: value.name,
-        rate: value.price || 0,
+        rate: value.rate || 0,
         type: value.type,
         remainingStock: value.remainingStock,
         unit: value.unit,
-        total: (currentItem.quantity * (value.price || 0))
+        total: (currentItem.quantity * (value.rate || 0)).toFixed(2)
       });
     }
   };
 
   const handleAddItem = () => {
-    if (!validateItemInput()) {
-      return;
-    }
+    if (!validateItemInput()) return;
 
     const newItem = {
       id: selectedStock._id,
@@ -323,10 +277,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       unit: currentItem.weight > 0 ? 'kg' : selectedStock.unit
     };
 
-    console.log('Adding item with unit:', newItem.unit);
     setItems(prevItems => [...prevItems, newItem]);
-    
-    // Reset current item and selection
     setSelectedStock(null);
     setCurrentItem({
       id: '',
@@ -364,13 +315,13 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       const saleData = {
         saleNumber: saleNumber,
         date: invoiceDate,
-        customer: customer._id,
+        customer: customer?._id,
         items: items.map(item => ({
           itemId: item.productId,
           itemType: item.type === 'product' ? 'Product' : 'Livestock',
           name: item.name,
           quantity: Number(item.quantity),
-          price: Number(item.rate),
+          rate: Number(item.rate),
           total: Number(item.total),
           weight: Number(item.weight || 0),
           unit: item.weight > 0 ? 'kg' : (item.name.toLowerCase().includes('milk') ? 'L' : 'pcs')
@@ -387,28 +338,27 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       };
 
       const response = await saleServices.createSale(saleData);
-      
+
       if (response.success) {
         if (response.invoice?.whatsappSent) {
-          enqueueSnackbar('Invoice created and sent via WhatsApp', { variant: 'success' });
+          enqueueSnackbar('Sale created and sent via WhatsApp', { variant: 'success' });
         } else {
-          enqueueSnackbar('Invoice created successfully', { variant: 'success' });
+          enqueueSnackbar('Sale created successfully', { variant: 'success' });
           if (response.invoice?.whatsappError) {
             enqueueSnackbar(`WhatsApp notification failed: ${response.invoice.whatsappError}`, { variant: 'warning' });
           }
         }
         onClose();
       } else {
-        throw new Error(response.message || 'Failed to create invoice');
+        throw new Error(response.message || 'Failed to create sale');
       }
     } catch (error) {
-      console.error('Invoice creation error:', error);
-      setError(error.message || 'Failed to create invoice');
-      enqueueSnackbar(error.message || 'Failed to create invoice', { variant: 'error' });
+      console.error('Sale creation error:', error);
+      setError(error.message || 'Failed to create sale');
+      enqueueSnackbar(error.message || 'Failed to create sale', { variant: 'error' });
     }
   };
 
-  // Update customer details display
   const CustomerDetailsSection = () => (
     <>
       <Grid item xs={12}>
@@ -418,7 +368,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         <TextField
           fullWidth
           label="Customer Name"
-          value={customer?.customerName || ''}
+          value={customer?.customerName || 'N/A'}
           disabled
           variant="outlined"
           InputProps={{
@@ -431,7 +381,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         <TextField
           fullWidth
           label="Contact Number"
-          value={customer?.contactNo || ''}
+          value={customer?.contactNo || 'N/A'}
           disabled
           variant="outlined"
           InputProps={{
@@ -444,7 +394,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
         <TextField
           fullWidth
           label="Address"
-          value={customer?.address || ''}
+          value={customer?.address || 'N/A'}
           disabled
           variant="outlined"
           multiline
@@ -458,11 +408,9 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
     </>
   );
 
-  // Add this section to your render method, before the items table
   const renderItemSelection = () => (
     <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
       <Grid container spacing={2}>
-        {/* Fixed width container for type and item selection */}
         <Grid item xs={12}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
@@ -528,7 +476,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                         {option.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        Stock: {option.remainingStock} {option.unit} • Price: ₹{option.price}
+                        Stock: {option.remainingStock} {option.unit} • Price: ₹{option.rate}
                       </Typography>
                     </Box>
                   </li>
@@ -538,7 +486,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           </Grid>
         </Grid>
 
-        {/* Input Fields Container - Always rendered but conditionally visible */}
         <Grid item xs={12}>
           <Grid container spacing={2} sx={{ 
             visibility: selectedStock ? 'visible' : 'hidden',
@@ -546,7 +493,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
             overflow: 'hidden',
             transition: 'height 0.2s ease-in-out'
           }}>
-            {/* Weight field - Only for livestock */}
             <Grid item xs={12} sm={4}>
               <Box sx={{ 
                 visibility: itemType === 'livestock' ? 'visible' : 'hidden',
@@ -567,7 +513,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
               </Box>
             </Grid>
 
-            {/* Quantity and Rate fields */}
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
@@ -598,7 +543,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           </Grid>
         </Grid>
 
-        {/* Add Item Button */}
         <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="contained"
@@ -625,7 +569,7 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 4 }}>
           <Typography variant="h6" component="div">
-            Create Invoice - {customer?.customerName}
+            Create Sale - {customer?.customerName || 'N/A'}
           </Typography>
           <IconButton
             aria-label="close"
@@ -646,12 +590,10 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
 
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          {/* Invoice Details Section */}
           <Grid item xs={12}>
-            <Typography variant="subtitle2" sx={{ mb: 2 }}>Invoice Details</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 2 }}>Sale Details</Typography>
           </Grid>
           
-          {/* Invoice Number and Date */}
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
@@ -672,16 +614,10 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
               type="date"
               value={invoiceDate}
               onChange={(e) => setInvoiceDate(e.target.value)}
-              InputLabelProps={{
-                shrink: true,
-              }}
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
 
-          {/* Customer Details Section */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Customer Details</Typography>
-          </Grid>
           <CustomerDetailsSection />
 
           {error && (
@@ -690,7 +626,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
             </Alert>
           )}
 
-          {/* Item Selection */}
           {renderItemSelection()}
 
           <TableContainer component={Paper} elevation={2}>
@@ -739,12 +674,10 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
             </Table>
           </TableContainer>
 
-          {/* Payment Section */}
           <Grid container spacing={2} sx={{ mt: 3 }}>
             <Grid item xs={12}>
               <Typography variant="subtitle2" sx={{ mb: 2 }}>Payment Details</Typography>
             </Grid>
-
 
             <Grid item xs={12} md={6}>
               <TextField
@@ -795,22 +728,16 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                     value={paidAmount}
                     onChange={(e) => {
                       const newAmount = Number(e.target.value);
-                      if (newAmount >= 0) {
-                        setPaidAmount(newAmount);
-                      }
+                      if (newAmount >= 0) setPaidAmount(newAmount);
                     }}
                     error={paymentType === 'payment' && paidAmount <= 0}
                     helperText={paymentType === 'payment' && paidAmount <= 0 ? 'Please enter valid amount' : ''}
                     InputProps={{
-                      inputProps: { 
-                        min: 0,
-                        step: 0.01 
-                      }
+                      inputProps: { min: 0, step: 0.01 }
                     }}
                   />
                 </Grid>
 
-                {/* Payment Summary Box */}
                 <Grid item xs={12}>
                   <Box sx={{ 
                     p: 2, 
@@ -826,15 +753,11 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                           Payment Breakdown
                         </Typography>
                       </Grid>
-                      
-                      {/* Invoice Details */}
                       <Grid item xs={12}>
                         <Typography variant="body2" color="text.secondary">
                           Invoice Amount: ₹{calculateGrandTotal()}
                         </Typography>
                       </Grid>
-
-                      {/* Payment Adjustment */}
                       {paidAmount > 0 && (
                         <>
                           <Grid item xs={12}>
@@ -842,14 +765,11 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                               Payment Amount: ₹{paidAmount.toFixed(2)}
                             </Typography>
                           </Grid>
-                          
                           <Grid item xs={12}>
                             <Typography variant="body2" color="text.secondary">
                               Adjusted Against Invoice: ₹{Math.min(paidAmount, Number(calculateGrandTotal())).toFixed(2)}
                             </Typography>
                           </Grid>
-
-                          {/* Show advance amount if payment is more than invoice */}
                           {paidAmount > Number(calculateGrandTotal()) && (
                             <Grid item xs={12}>
                               <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>
@@ -857,8 +777,6 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
                               </Typography>
                             </Grid>
                           )}
-
-                          {/* Show remaining if payment is less than invoice */}
                           {paidAmount < Number(calculateGrandTotal()) && (
                             <Grid item xs={12}>
                               <Typography variant="body2" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
@@ -887,11 +805,11 @@ const CreateInvoiceDialog = ({ open, onClose, customer }) => {
           disabled={items.length === 0 || loading}
           onClick={handleSubmit}
         >
-          {loading ? <CircularProgress size={24} /> : 'Create Invoice'}
+          {loading ? <CircularProgress size={24} /> : 'Create Sale'}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default CreateInvoiceDialog; 
+export default CreateSaleDialog;

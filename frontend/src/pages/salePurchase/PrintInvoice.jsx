@@ -16,9 +16,9 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Close as CloseIcon, Print as PrintIcon } from '@mui/icons-material';
-import { getCompanySettings } from '../services/companySettingsService';
-import { numberToWords } from '../utils/numberToWords';
-import useResponsiveness from '../hooks/useResponsive';
+import { getCompanySettings } from '../../services/companySettingsService';
+import { numberToWords } from '../../utils/numberToWords';
+import useResponsiveness from '../../hooks/useResponsive';
 import { useReactToPrint } from "react-to-print";
 
 const globalStyles = `
@@ -33,7 +33,7 @@ const globalStyles = `
   }
 `;
 
-const PrintInvoice = ({ open, onClose, invoiceData }) => {
+const PrintInvoice = ({ open, onClose, saleData }) => {
   const [companyDetails, setCompanyDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const componentRef = useRef(null);
@@ -41,7 +41,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `Invoice_${invoiceData?.saleNumber || 'Print'}`,
+    documentTitle: `Invoice_${saleData?.saleNumber || 'Print'}`,
     onBeforeGetContent: () => {
       if (!componentRef.current) {
         return Promise.reject('Printing content not ready');
@@ -95,9 +95,9 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
     };
   }, []);
 
-  console.log('invoiceData:', invoiceData);
+  console.log('saleData:', saleData);
 
-  if (!invoiceData || loading) return (
+  if (!saleData || loading) return (
     <Dialog open={open} onClose={onClose} fullWidth fullScreen>
       <DialogContent>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
@@ -204,14 +204,14 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
               fontWeight: 'bold',
               fontSize: isPreview && isMobile ? '0.8rem' : '0.9rem'
             }}>
-              Invoice No: {invoiceData.saleNumber}
+              Invoice No: {saleData.saleNumber}
             </Typography>
             <Typography sx={{ 
               fontWeight: 'bold', 
               mb: 1,
               fontSize: isPreview && isMobile ? '0.8rem' : '0.9rem'
             }}>
-              Date: {formatDate(invoiceData.createdAt)}
+              Date: {formatDate(saleData.createdAt)}
             </Typography>
             <Typography sx={{ 
               fontWeight: 'bold', 
@@ -224,13 +224,13 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
               fontWeight: 'bold',
               fontSize: isPreview && isMobile ? '0.8rem' : '0.9rem'
             }}>
-              Name: {invoiceData.customer?.name}
+              Name: {saleData.customer?.customerName}
             </Typography>
             <Typography sx={{ 
               fontWeight: 'bold',
               fontSize: isPreview && isMobile ? '0.8rem' : '0.9rem'
             }}>
-              Contact: {invoiceData.customer?.contactNumber || 'N/A'}
+              Contact: {saleData.customer?.contactNo || 'N/A'}
             </Typography>
           </Box>
         </Box>
@@ -260,7 +260,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {invoiceData.items.map((item, index) => (
+              {saleData.items.map((item, index) => (
                 <TableRow key={index}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{item.name.charAt(0).toUpperCase() + item.name.slice(1)}</TableCell>
@@ -323,12 +323,12 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
             
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>Sub Total:</Typography>
-                <Typography sx={{ fontFamily: 'Calibri' }}>₹{(invoiceData.grandTotal - (invoiceData.gstAmount || 0)).toFixed(2)}</Typography>
+                <Typography sx={{ fontFamily: 'Calibri' }}>₹{(saleData.grandTotal - (saleData.gstAmount || 0)).toFixed(2)}</Typography>
               </Box>
-              {invoiceData.gstPercentage > 0 && (
+              {saleData.gstPercentage > 0 && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>GST ({invoiceData.gstPercentage}%):</Typography>
-                  <Typography sx={{ fontFamily: 'Calibri' }}>₹{invoiceData.gstAmount?.toFixed(2) || '0.00'}</Typography>
+                  <Typography sx={{ fontWeight: 'bold', fontFamily: 'Calibri' }}>GST ({saleData.gstPercentage}%):</Typography>
+                  <Typography sx={{ fontFamily: 'Calibri' }}>₹{saleData.gstAmount?.toFixed(2) || '0.00'}</Typography>
                 </Box>
               )}
               <Box sx={{ 
@@ -340,7 +340,7 @@ const PrintInvoice = ({ open, onClose, invoiceData }) => {
               }}>
                 <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'Calibri' }}>Grand Total:</Typography>
                 <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'Calibri' }}>
-                  ₹{invoiceData.grandTotal?.toFixed(2) || '0.00'}
+                  ₹{saleData.grandTotal?.toFixed(2) || '0.00'}
                 </Typography>
               </Box>
             </Box>

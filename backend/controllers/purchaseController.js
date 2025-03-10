@@ -126,7 +126,7 @@ exports.createPurchase = async (req, res) => {
                     unit: item.unit,
                     previousStock: item.previousStock || 0,
                     currentStock: (item.previousStock || 0) + item.quantity,
-                    unitPrice: item.price,
+                    unitRate: item.rate,
                     reference: {
                         type: 'Purchase',
                         id: purchase._id

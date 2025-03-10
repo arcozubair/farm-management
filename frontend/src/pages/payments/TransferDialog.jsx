@@ -12,9 +12,10 @@ import {
   Select,
   MenuItem,
   CircularProgress,
-  IconButton
+  IconButton,
+  Typography
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, SwapVert as SwapVertIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import accountService from '../../services/accountService';
 import useResponsiveness from '../../hooks/useResponsive';
@@ -30,6 +31,7 @@ const TransferDialog = ({ open, onClose }) => {
     amount: '',
     notes: ''
   });
+  const [amountError, setAmountError] = useState(false); // Add state for error handling
 
   useEffect(() => {
     if (open) {
@@ -59,11 +61,14 @@ const TransferDialog = ({ open, onClose }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const response = await accountService.createTransfer({
+      let transferData = {
         fromAccountId: transferForm.fromAccount,
         toAccountId: transferForm.toAccount,
         amount: Number(transferForm.amount),
         notes: transferForm.notes
+      }
+      const response = await accountService.createTransfer({
+        transferData
       });
 
       if (response.success) {
@@ -84,7 +89,42 @@ const TransferDialog = ({ open, onClose }) => {
       amount: '',
       notes: ''
     });
+    setAmountError(false); // Reset error state on close
     onClose();
+  };
+
+  const handleSwap = () => {
+    setTransferForm(prev => ({
+      ...prev,
+      fromAccount: prev.toAccount,
+      toAccount: prev.fromAccount
+    }));
+  };
+
+  // Find selected accounts to display their balances
+  const fromAccount = accounts.find(acc => acc._id === transferForm.fromAccount);
+  const toAccount = accounts.find(acc => acc._id === transferForm.toAccount);
+
+  // Function to format balance with Cr/Dr
+  const formatBalance = (balance) => {
+    if (balance === undefined || balance === null) return '$0.00';
+    const absBalance = Math.abs(balance).toFixed(2);
+    const isCredit = balance >= 0;
+    return `${absBalance} ${isCredit ? 'Cr' : 'Dr'}`;
+  };
+
+  // Validate and handle amount change
+  const handleAmountChange = (e) => {
+    const value = e.target.value;
+    const numValue = Number(value);
+    
+    // Allow empty input or valid number > 0
+    if (value === '' || (numValue > 0 && !isNaN(numValue))) {
+      setTransferForm({ ...transferForm, amount: value });
+      setAmountError(false);
+    } else {
+      setAmountError(true); // Set error if value <= 0 or invalid
+    }
   };
 
   return (
@@ -125,6 +165,24 @@ const TransferDialog = ({ open, onClose }) => {
                 ))}
               </Select>
             </FormControl>
+            {fromAccount && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Balance: {formatBalance(fromAccount.balance)}
+              </Typography>
+            )}
+          </Grid>
+
+          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', my: -1 }}>
+            <IconButton 
+              onClick={handleSwap}
+              sx={{ 
+                bgcolor: 'background.paper',
+                boxShadow: 1,
+                '&:hover': { bgcolor: 'background.paper' }
+              }}
+            >
+              <SwapVertIcon />
+            </IconButton>
           </Grid>
 
           <Grid item xs={12}>
@@ -145,6 +203,11 @@ const TransferDialog = ({ open, onClose }) => {
                 ))}
               </Select>
             </FormControl>
+            {toAccount && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Balance: {formatBalance(toAccount.balance)}
+              </Typography>
+            )}
           </Grid>
 
           <Grid item xs={12}>
@@ -153,7 +216,10 @@ const TransferDialog = ({ open, onClose }) => {
               label="Amount"
               type="number"
               value={transferForm.amount}
-              onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
+              onChange={handleAmountChange} // Use custom handler
+              error={amountError} // Show error state
+              helperText={amountError ? 'Amount must be greater than 0' : ''} // Error message
+              inputProps={{ min: 0 }} // HTML5 min attribute (optional, not strict enforcement)
             />
           </Grid>
 
@@ -175,7 +241,13 @@ const TransferDialog = ({ open, onClose }) => {
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || !transferForm.fromAccount || !transferForm.toAccount || !transferForm.amount}
+          disabled={
+            loading || 
+            !transferForm.fromAccount || 
+            !transferForm.toAccount || 
+            !transferForm.amount || 
+            amountError 
+          }
         >
           {loading ? <CircularProgress size={24} /> : 'Submit'}
         </Button>

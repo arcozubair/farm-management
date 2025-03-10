@@ -24,6 +24,7 @@ const companyData = {
   numberSequences: {
     lastTransactionNumber: 0,
     lastSaleNumber: 0,
+    lastTransferNumber:0,
     lastPurchaseNumber: 0,
     lastReceiptNumber: 0,
     lastPaymentNumber: 0,
@@ -31,6 +32,7 @@ const companyData = {
   },
   prefixes: {
     transactionPrefix: "TXN",
+    transferPrefix:"TRF",
     salePrefix: "SALE",
     purchasePrefix: "PUR",
     receiptPrefix: "RCP",

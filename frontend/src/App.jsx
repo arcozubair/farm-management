@@ -6,7 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Livestock from './pages/Livestock';
 import Products from './pages/Products';
-import Sales from './pages/Sales';
+import Sales from './pages/salePurchase/Sales';
 import Customers from './pages/Customers';
 import Users from './pages/Users';
 import Unauthorized from './pages/Unauthorized';
@@ -19,7 +19,7 @@ import Settings from './pages/Settings';
 import CreateAccount from './pages/accounts/CreateAccount';
 import ListAccounts from './pages/accounts/ListAccounts';
 import AccountLedger from './pages/accounts/AccountLedger';
-import Purchases from './pages/purchases/Purchases';
+import Purchases from './pages/salePurchase/Purchases';
 import Payments from './pages/payments/Payments';
 
 function App() {

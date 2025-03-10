@@ -4,16 +4,7 @@ const API_URL = '/daybook';
 
 
 const dayBookService = {
-  getEntries: async (date) => {
-    try {
-      const response = await api.get(`${API_URL}`, {
-        params: { date }
-      });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
+ 
 
   addCollection: async (collectionData) => {
     try {
@@ -33,6 +24,17 @@ const dayBookService = {
       console.error('Error adding collection:', error);
       throw error.response?.data || error;
     }
+  },
+  getEntries: async (date) => {
+    const response = await api.get(`${API_URL}/report`);
+    return response.data;
+  },
+
+  getDayBookReport: async ({ startDate, endDate }) => {
+    const response = await api.get(`${API_URL}/report`, {
+      params: { startDate, endDate }
+    });
+    return response.data;
   },
 
   addTransaction: async (transactionData) => {

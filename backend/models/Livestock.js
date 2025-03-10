@@ -10,7 +10,7 @@ const livestockSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  price: {
+  rate: {
     type: Number,
     required: true,
     default: 0

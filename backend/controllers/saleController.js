@@ -149,7 +149,7 @@ exports.createSale = async (req, res) => {
                     unit: product.unit,
                     previousStock: product.currentStock,
                     currentStock: product.currentStock - item.quantity,
-                    unitPrice: item.price,
+                    unitRate: item.rate,
                     reference: {
                         type: 'Sale',
                         id: sale._id
@@ -179,7 +179,7 @@ exports.createSale = async (req, res) => {
                     quantity: item.quantity,
                     previousStock: livestock.quantity,
                     currentStock: livestock.quantity - item.quantity,
-                    unitPrice: item.price || 0,
+                    unitRate: item.rate || 0,
                     reference: {
                         type: 'Sale',
                         id: sale._id
@@ -221,6 +221,136 @@ exports.createSale = async (req, res) => {
         session.endSession();
     }
 };
+// In your saleServices.js or similar backend file
+exports.createMultipleSales = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const salesData = req.body; // Expecting an array of sale objects
+        if (!Array.isArray(salesData)) {
+            throw new Error('Expected an array of sales data');
+        }
+
+        const createdSales = [];
+
+        for (const saleData of salesData) {
+            const { customer, items, grandTotal, saleNumber, date } = saleData;
+
+            if (!req.user || !req.user._id) {
+                throw new Error('User not authenticated');
+            }
+
+            const transactionDate = date ? new Date(date) : new Date();
+            if (isNaN(transactionDate.getTime())) {
+                throw new Error('Invalid date provided');
+            }
+
+            const sale = new Sale({
+                saleNumber,
+                date: transactionDate,
+                customer,
+                items,
+                grandTotal,
+                paidAmount: 0, // Default to credit
+                remainingBalance: grandTotal,
+                createdBy: req.user._id,
+                paymentType: 'credit'
+            });
+
+            await sale.save({ session });
+            createdSales.push(sale);
+
+            const [salesAccount, customerAccount] = await Promise.all([
+                Account.findOne({ accountType: 'Sale', accountName: 'Sales Account' }).session(session),
+                Account.findOne({ accountType: 'Customer', _id: customer }).session(session)
+            ]);
+
+            if (!salesAccount || !customerAccount) {
+                throw new Error('Required accounts not found');
+            }
+
+            const saleTransaction = new Transaction({
+                contextDescriptions: {
+                    [customerAccount._id.toString()]: `Receivable from sale #${saleNumber} to ${customerAccount.accountName}`,
+                    [salesAccount._id.toString()]: `Revenue from sale #${saleNumber}`
+                },
+                amount: grandTotal,
+                debitAccount: customerAccount._id,
+                creditAccount: salesAccount._id,
+                date: transactionDate,
+                createdBy: req.user._id,
+                saleRef: sale._id
+            });
+
+            await saleTransaction.save({ session });
+
+            await Promise.all([
+                Account.findByIdAndUpdate(customerAccount._id, 
+                    { $inc: { balance: grandTotal } }, 
+                    { session }
+                ),
+                Account.findByIdAndUpdate(salesAccount._id, 
+                    { $inc: { balance: grandTotal } }, 
+                    { session }
+                )
+            ]);
+
+            await Promise.all(items.map(async item => {
+                const product = await Product.findById(item.itemId).session(session);
+                if (!product || product.name.toLowerCase() !== 'milk') {
+                    throw new Error(`Only milk is allowed for bulk sales: ${item.name}`);
+                }
+
+                if (product.currentStock < item.quantity) {
+                    throw new Error(`Insufficient stock for ${product.name}`);
+                }
+
+                await StockMovement.create([{
+                    product: item.itemId,
+                    date: transactionDate,
+                    transactionType: 'Sale',
+                    quantity: item.quantity,
+                    unit: product.unit,
+                    previousStock: product.currentStock,
+                    currentStock: product.currentStock - item.quantity,
+                    unitRate: item.rate,
+                    reference: { type: 'Sale', id: sale._id },
+                    createdBy: req.user._id
+                }], { session });
+
+                await Product.findByIdAndUpdate(
+                    item.itemId,
+                    { $inc: { currentStock: -item.quantity } },
+                    { session }
+                );
+            }));
+
+            await CompanySettings.findOneAndUpdate(
+                {},
+                { $inc: { 'numberSequences.lastSaleNumber': 1 } },
+                { session }
+            );
+        }
+
+        await session.commitTransaction();
+
+        res.status(201).json({
+            success: true,
+            data: createdSales,
+            message: 'Bulk sales recorded successfully'
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    } finally {
+        session.endSession();
+    }
+};
 
 // Helper function to generate invoice number
 async function generateSaleNumber() {
@@ -242,30 +372,257 @@ async function generateSaleNumber() {
     return `INV-${year}/${month}-${sequence}`;
 }
 
-exports.getSale = async (req, res) => {
-  try {
-    const invoice = await Sale.findById(req.params.id)
-      .populate('customer', 'name contactNumber')
-      .populate('items.item')
-      .populate('createdBy', 'name');
+exports.updateSale = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        error: 'Invoice not found'
-      });
+    try {
+        console.log("this is req.body",req.params);
+        const saleId  = req.params.id; // Assume saleId is passed as a URL parameter
+        const { customer, items, paidAmount, grandTotal, saleNumber, date, paymentType, paymentDetails } = req.body;
+
+        if (!req.user || !req.user._id) {
+            throw new Error('User not authenticated');
+        }
+
+        // Validate saleId
+        if (!mongoose.Types.ObjectId.isValid(saleId)) {
+            throw new Error('Invalid sale ID');
+        }
+
+        // Parse the input date and ensure it includes time
+        const transactionDate = date ? new Date(date) : new Date();
+        if (isNaN(transactionDate.getTime())) {
+            throw new Error('Invalid date provided');
+        }
+
+        // Fetch the existing sale
+        const existingSale = await Sale.findById(saleId).session(session);
+        if (!existingSale) {
+            throw new Error('Sale not found');
+        }
+
+        // Step 1: Reverse the original sale's effects
+        const originalTransactions = await Transaction.find({ saleRef: saleId }).session(session);
+        for (const transaction of originalTransactions) {
+            const { debitAccount, creditAccount, amount } = transaction;
+
+            // Reverse account balances
+            await Promise.all([
+                Account.findByIdAndUpdate(debitAccount, { $inc: { balance: -amount } }, { session }),
+                Account.findByIdAndUpdate(creditAccount, { $inc: { balance: -amount } }, { session })
+            ]);
+
+            // Delete the transaction
+            await Transaction.deleteOne({ _id: transaction._id }, { session });
+        }
+
+        // Reverse stock movements
+        const originalStockMovements = await StockMovement.find({ 'reference.id': saleId }).session(session);
+        for (const movement of originalStockMovements) {
+            await Product.findByIdAndUpdate(
+                movement.product,
+                { $inc: { currentStock: movement.quantity } }, // Restore stock
+                { session }
+            );
+            await StockMovement.deleteOne({ _id: movement._id }, { session });
+        }
+
+        // Reverse livestock movements
+        const originalLivestockMovements = await LivestockMovement.find({ 'reference.id': saleId }).session(session);
+        for (const movement of originalLivestockMovements) {
+            await Livestock.findByIdAndUpdate(
+                movement.livestock,
+                { $inc: { quantity: movement.quantity } }, // Restore livestock
+                { session }
+            );
+            await LivestockMovement.deleteOne({ _id: movement._id }, { session });
+        }
+
+        // Step 2: Update the sale document
+        existingSale.customer = customer || existingSale.customer;
+        existingSale.items = items || existingSale.items;
+        existingSale.grandTotal = grandTotal || existingSale.grandTotal;
+        existingSale.paidAmount = paidAmount !== undefined ? paidAmount : existingSale.paidAmount;
+        existingSale.remainingBalance = existingSale.grandTotal - (existingSale.paidAmount || 0);
+        existingSale.saleNumber = saleNumber || existingSale.saleNumber;
+        existingSale.date = transactionDate;
+        existingSale.updatedBy = req.user._id; // Optional: track who updated it
+        await existingSale.save({ session });
+
+        // Step 3: Apply new sale effects
+        // Get required accounts
+        const [salesAccount, customerAccount, paymentAccount] = await Promise.all([
+            Account.findOne({ accountType: 'Sale', accountName: 'Sales Account' }).session(session),
+            Account.findOne({ accountType: 'Customer', _id: customer || existingSale.customer }).session(session),
+            paymentDetails?.accountId ? Account.findById(paymentDetails.accountId).session(session) : null
+        ]);
+
+        if (!salesAccount || !customerAccount || (paymentType === 'payment' && !paymentAccount)) {
+            throw new Error('Required accounts not found');
+        }
+
+        // Create main sale transaction
+        const saleTransaction = new Transaction({
+            contextDescriptions: {
+                [customerAccount._id.toString()]: `Receivable from sale #${existingSale.saleNumber} to ${customerAccount.accountName}`,
+                [salesAccount._id.toString()]: `Revenue from sale #${existingSale.saleNumber}`
+            },
+            amount: existingSale.grandTotal,
+            debitAccount: customerAccount._id,
+            creditAccount: salesAccount._id,
+            date: transactionDate,
+            createdBy: req.user._id,
+            saleRef: existingSale._id
+        });
+
+        await saleTransaction.save({ session });
+
+        // Update account balances for sale
+        await Promise.all([
+            Account.findByIdAndUpdate(customerAccount._id, 
+                { $inc: { balance: existingSale.grandTotal } }, 
+                { session }
+            ),
+            Account.findByIdAndUpdate(salesAccount._id, 
+                { $inc: { balance: existingSale.grandTotal } }, 
+                { session }
+            )
+        ]);
+
+        // Handle payment if any
+        if (paymentType === 'payment' && existingSale.paidAmount > 0) {
+            const invoiceAdjustment = Math.min(existingSale.paidAmount, existingSale.grandTotal);
+
+            const paymentTransaction = new Transaction({
+                contextDescriptions: {
+                    [paymentAccount._id.toString()]: `Cash received from ${customerAccount.accountName}`,
+                    [customerAccount._id.toString()]: `Payment made to ${paymentAccount.accountName}`
+                },
+                amount: invoiceAdjustment,
+                debitAccount: paymentAccount._id,
+                creditAccount: customerAccount._id,
+                date: transactionDate,
+                createdBy: req.user._id,
+                saleRef: existingSale._id
+            });
+
+            await paymentTransaction.save({ session });
+
+            if (existingSale.paidAmount > existingSale.grandTotal) {
+                const advanceAmount = existingSale.paidAmount - existingSale.grandTotal;
+                const advanceTransaction = new Transaction({
+                    contextDescriptions: {
+                        [paymentAccount._id.toString()]: `Advance cash received from ${customerAccount.accountName}`,
+                        [customerAccount._id.toString()]: `Advance payment made to ${paymentAccount.accountName}`
+                    },
+                    amount: advanceAmount,
+                    debitAccount: paymentAccount._id,
+                    creditAccount: customerAccount._id,
+                    date: transactionDate,
+                    createdBy: req.user._id,
+                    saleRef: existingSale._id
+                });
+                await advanceTransaction.save({ session });
+            }
+
+            await Promise.all([
+                Account.findByIdAndUpdate(paymentAccount._id, 
+                    { $inc: { balance: existingSale.paidAmount } }, 
+                    { session }
+                ),
+                Account.findByIdAndUpdate(customerAccount._id, 
+                    { $inc: { balance: -existingSale.paidAmount } }, 
+                    { session }
+                )
+            ]);
+        }
+
+        // Update stock for items
+        await Promise.all(existingSale.items.map(async item => {
+            if (item.itemType === 'Product') {
+                const product = await Product.findById(item.itemId).session(session);
+                if (!product) {
+                    throw new Error(`Product not found: ${item.name}`);
+                }
+
+                if (product.currentStock < item.quantity) {
+                    throw new Error(`Insufficient stock for ${product.name}`);
+                }
+
+                await StockMovement.create([{
+                    product: item.itemId,
+                    date: transactionDate,
+                    transactionType: 'Sale',
+                    quantity: item.quantity,
+                    unit: product.unit,
+                    previousStock: product.currentStock,
+                    currentStock: product.currentStock - item.quantity,
+                    unitRate: item.rate,
+                    reference: {
+                        type: 'Sale',
+                        id: existingSale._id
+                    },
+                    createdBy: req.user._id
+                }], { session });
+
+                await Product.findByIdAndUpdate(
+                    item.itemId,
+                    { $inc: { currentStock: -item.quantity } },
+                    { session }
+                );
+            } else if (item.itemType === 'Livestock') {
+                const livestock = await Livestock.findById(item.itemId).session(session);
+                if (!livestock) {
+                    throw new Error(`Livestock not found: ${item.name}`);
+                }
+
+                if (livestock.quantity < item.quantity) {
+                    throw new Error(`Insufficient livestock count for ${livestock.type}`);
+                }
+
+                await LivestockMovement.create([{
+                    livestock: item.itemId,
+                    date: transactionDate,
+                    transactionType: 'Sale',
+                    quantity: item.quantity,
+                    previousStock: livestock.quantity,
+                    currentStock: livestock.quantity - item.quantity,
+                    unitRate: item.rate || 0,
+                    reference: {
+                        type: 'Sale',
+                        id: existingSale._id
+                    },
+                    createdBy: req.user._id
+                }], { session });
+
+                await Livestock.findByIdAndUpdate(
+                    item.itemId,
+                    { $inc: { quantity: -item.quantity } },
+                    { session }
+                );
+            }
+        }));
+
+        await session.commitTransaction();
+
+        res.status(200).json({
+            success: true,
+            data: {
+                sale: existingSale,
+                message: 'Sale updated successfully'
+            }
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    } finally {
+        session.endSession();
     }
-
-    res.status(200).json({
-      success: true,
-      data: invoice
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
 };
 
 // Get all invoices with pagination and filters
@@ -350,9 +707,9 @@ exports.getSales = async (req, res) => {
 exports.getSalesById = async (req, res) => {
     try {
         const invoice = await Sale.findById(req.params.id)
-            .populate('customerInfo', 'name phone address')
+            .populate('customer', 'customerName contactNo address')
             .populate('createdBy', 'name')
-            .populate('items.productId', 'name code');
+            .populate('items.itemId', 'name code');
 
         if (!invoice) {
             return res.status(404).json({
@@ -460,41 +817,110 @@ exports.deleteSale = async (req, res) => {
     session.startTransaction();
 
     try {
-        const invoice = await Sale.findById(req.params.id).session(session);
-
-        if (!invoice) {
-            throw new Error('Invoice not found');
+        const sale = await Sale.findById(req.params.id).session(session);
+        if (!sale) {
+            throw new Error('Sale not found');
         }
 
-        // Restore stock for each product
-        for (const item of invoice.items) {
-            await Product.findByIdAndUpdate(
-                item.productId,
-                { $inc: { stock: item.quantity } },
+        // Find all related transactions
+        const transactions = await Transaction.find({ saleRef: sale._id }).session(session);
+
+        // Get affected accounts
+        const [salesAccount, customerAccount] = await Promise.all([
+            Account.findOne({ accountType: 'Sale', accountName: 'Sales Account' }).session(session),
+            Account.findById(sale.customer).session(session)
+        ]);
+
+        if (!salesAccount || !customerAccount) {
+            throw new Error('Required accounts not found');
+        }
+
+        // Reverse account balances from sale transaction
+        await Promise.all([
+            Account.findByIdAndUpdate(
+                customerAccount._id,
+                { $inc: { balance: -sale.grandTotal } },
                 { session }
+            ),
+            Account.findByIdAndUpdate(
+                salesAccount._id,
+                { $inc: { balance: -sale.grandTotal } },
+                { session }
+            )
+        ]);
+
+        // Handle payment reversal if it exists
+        if (sale.paidAmount > 0) {
+            const paymentTransaction = transactions.find(t => 
+                t.debitAccount.toString() !== customerAccount._id.toString() &&
+                t.creditAccount.toString() === customerAccount._id.toString()
             );
+            
+            if (paymentTransaction) {
+                const paymentAccount = await Account.findById(paymentTransaction.debitAccount).session(session);
+                await Promise.all([
+                    Account.findByIdAndUpdate(
+                        paymentAccount._id,
+                        { $inc: { balance: -sale.paidAmount } },
+                        { session }
+                    ),
+                    Account.findByIdAndUpdate(
+                        customerAccount._id,
+                        { $inc: { balance: sale.paidAmount } },
+                        { session }
+                    )
+                ]);
+            }
         }
 
-        // Delete invoice
-        await invoice.deleteOne({ session });
+        // Restore stock and remove stock movements
+        await Promise.all(sale.items.map(async item => {
+            if (item.itemType === 'Product') {
+                await Promise.all([
+                    Product.findByIdAndUpdate(
+                        item.itemId,
+                        { $inc: { currentStock: item.quantity } },
+                        { session }
+                    ),
+                    StockMovement.deleteOne(
+                        { 
+                            product: item.itemId,
+                            'reference.type': 'Sale',
+                            'reference.id': sale._id 
+                        },
+                        { session }
+                    )
+                ]);
+            } else if (item.itemType === 'Livestock') {
+                await Promise.all([
+                    Livestock.findByIdAndUpdate(
+                        item.itemId,
+                        { $inc: { quantity: item.quantity } },
+                        { session }
+                    ),
+                    LivestockMovement.deleteOne(
+                        { 
+                            livestock: item.itemId,
+                            'reference.type': 'Sale',
+                            'reference.id': sale._id 
+                        },
+                        { session }
+                    )
+                ]);
+            }
+        }));
 
-        // Update customer balance
-        await Customer.findByIdAndUpdate(
-            invoice.customerInfo,
-            { 
-                $inc: { 
-                    totalPurchases: -invoice.totalAmount,
-                    balance: -invoice.remainingBalance 
-                }
-            },
-            { session }
-        );
+        // Delete all related transactions
+        await Transaction.deleteMany({ saleRef: sale._id }, { session });
+
+        // Delete the sale
+        await Sale.deleteOne({ _id: sale._id }, { session });
 
         await session.commitTransaction();
 
         res.status(200).json({
             success: true,
-            message: 'Invoice deleted successfully'
+            message: 'Sale and all related records deleted successfully'
         });
     } catch (error) {
         await session.abortTransaction();

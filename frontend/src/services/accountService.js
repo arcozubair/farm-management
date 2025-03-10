@@ -78,6 +78,15 @@ const accountService = {
     }
   },
 
+  createTransfer :async (transferData)=>{
+    try {
+      const response = await api.post(`${BASE_URL}/transfer/`,transferData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to transfer' };
+    }
+  },
+
   createPayment: async (paymentData) => {
     try {
       const response = await api.post(`${BASE_URL}/payment`, paymentData);
@@ -86,6 +95,7 @@ const accountService = {
       throw error.response?.data || { message: 'Failed to create payment' };
     }
   },
+ 
 
   // Get account balance
   getAccountBalance: async (id) => {

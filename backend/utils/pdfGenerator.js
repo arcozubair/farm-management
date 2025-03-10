@@ -139,7 +139,7 @@ const generateInvoiceP = async (invoiceData, companyDetails) => {
                 currentLeft += columnWidths[3];
 
                 // Rate
-                doc.text(formatCurrency(item.price), 
+                doc.text(formatCurrency(item.rate), 
                         currentLeft, currentTop, { align: 'right', width: columnWidths[4] });
                 currentLeft += columnWidths[4];
 
@@ -173,7 +173,7 @@ const generateInvoiceP = async (invoiceData, companyDetails) => {
                      475, totalsY + 40, { align: 'right' });
 
             // Declaration
-            const declaration = "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.";
+            const declaration = "We declare that this invoice shows the actual rate of the goods described and that all particulars are true and correct.";
             doc.fontSize(9)
                .font('Helvetica-Oblique')
                .text(declaration, 50, totalsY + 70, { width: 300 });
@@ -230,7 +230,7 @@ const generateInvoicePDF = async (invoice, companyDetails) => {
             items: invoice.items.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
-                price: item.price,
+                rate: item.rate,
                 total: item.total,
                 weight: item.weight || 0,
                 unit: item.unit || 'pcs'

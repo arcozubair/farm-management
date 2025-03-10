@@ -45,10 +45,10 @@ export const getLivestockStats = async () => {
 // Update livestock prices
 export const updateLivestockPrices = async (prices) => {
   try {
-    const promises = Object.entries(prices).map(([id, price]) => 
+    const promises = Object.entries(prices).map(([id, rate]) => 
       api.post(
-        `${API_URL}/update-price`,
-        { id, price }
+        `${API_URL}/update-rate`,
+        { id, rate }
       )
     );
     

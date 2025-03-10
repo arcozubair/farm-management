@@ -24,7 +24,7 @@ exports.addLivestock = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { category, type, quantity, price, notes } = req.body;
+    const { category, type, quantity, rate, notes } = req.body;
 
     // Validate type against predefined types
     const validTypes = Livestock.getTypes()[category];
@@ -40,7 +40,7 @@ exports.addLivestock = async (req, res) => {
       category,
       type,
       quantity,
-      price,
+      rate,
       notes
     }], { session });
 
@@ -247,10 +247,10 @@ exports.getLivestockStats = async (req, res) => {
 
 exports.updatePrice = async (req, res) => {
   try {
-    const { id, price } = req.body;
+    const { id, rate } = req.body;
     const livestock = await Livestock.findByIdAndUpdate(
       id,
-      { price },
+      { rate },
       { new: true }
     );
     

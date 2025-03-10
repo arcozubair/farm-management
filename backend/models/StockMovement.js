@@ -32,7 +32,7 @@ const stockMovementSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  unitPrice: {
+  unitRate: {
     type: Number,
     required: true
   },

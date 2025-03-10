@@ -23,13 +23,13 @@ exports.createProduct = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { name, unit, currentStock, price, description } = req.body;
+    const { name, unit, currentStock, rate, description } = req.body;
 
     const product = await Product.create([{
       name: capitalizeFirstLetter(name),
       unit,
       currentStock: currentStock || 0,
-      price,
+      rate,
       description
     }], { session });
 
@@ -43,7 +43,7 @@ exports.createProduct = async (req, res) => {
         unit,
         previousStock: 0,
         currentStock,
-        unitPrice: price,
+        unitRate: rate,
         reference: {
           type: 'Adjustment',
           id: product[0]._id
@@ -140,7 +140,7 @@ exports.updateStock = async (req, res) => {
       unit: product.unit,
       previousStock,
       currentStock: newStock,
-      unitPrice: product.price,
+      unitRate: product.rate,
       createdBy: req.user._id,
       reference: {
         type: transactionType.charAt(0).toUpperCase() + transactionType.slice(1),
@@ -381,11 +381,11 @@ exports.getDailyStockReport = async (req, res) => {
 
 exports.updatePrice = async (req, res) => {
   try {
-    const { id, price } = req.body;
+    const { id, rate } = req.body;
     
     const product = await Product.findByIdAndUpdate(
       id,
-      { price },
+      { rate },
       { new: true, runValidators: true }
     );
 
@@ -401,18 +401,42 @@ exports.updatePrice = async (req, res) => {
       data: product
     });
   } catch (error) {
-    console.error('Error updating price:', error);
+    console.error('Error updating rate:', error);
     res.status(400).json({
       success: false,
-      error: error.message || 'Failed to update price'
+      error: error.message || 'Failed to update rate'
     });
   }
 };
 
 exports.getProductMovements = async (req, res) => {
   try {
-    const { productId } = req.params;
-    const movements = await StockMovement.find({ product: productId })
+    const { productId, startDate, endDate } = req.params;
+
+    // Build query object
+    const query = { product: productId };
+    
+    // Set date filter
+    const currentDate = new Date();
+    query.date = {};
+    
+    if (startDate || endDate) {
+      // Use provided dates if available
+      if (startDate) {
+        query.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.date.$lte = new Date(endDate);
+      }
+    } else {
+      // Set both start and end of current day
+      const startOfDay = new Date(currentDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
+      query.date.$gte = startOfDay;
+      query.date.$lte = endOfDay;
+    }
+
+    const movements = await StockMovement.find(query)
       .sort({ date: -1 })
       .populate('createdBy', 'name');
 

@@ -14,5 +14,7 @@ router.post('/collection', dayBookController.addCollection);
 
 // Add new transaction entry (customer payments)
 router.post('/transaction', dayBookController.addTransaction);
+router.get('/report', dayBookController.getDayBookReport);
+router.get('/transaction/:id', dayBookController.getTransactionDetails);
 
 module.exports = router; 

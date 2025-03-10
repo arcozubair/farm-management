@@ -668,7 +668,106 @@ const getAccountLedger = async (req, res) => {
   }
 };
 
+const createTransfer = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
+  try {
+      const {
+          fromAccountId,
+          toAccountId,
+          amount,
+          notes
+      } = req.body.transferData;
+
+      if (!req.user || !req.user._id) {
+          throw new Error('User not authenticated');
+      }
+
+      // Get the accounts
+      const [fromAccount, toAccount] = await Promise.all([
+          Account.findById(fromAccountId).session(session),
+          Account.findById(toAccountId).session(session)
+      ]);
+
+      if (!fromAccount || !toAccount) {
+          throw new Error('Required accounts not found');
+      }
+
+      // Get transfer number from settings
+      const settings = await CompanySettings.findOne().session(session);
+      const transferNumber = `TRF-${settings.numberSequences.lastTransferNumber + 1}`;
+
+      // Create transfer transaction with context-aware descriptions
+      const transferTransaction = new Transaction({
+          contextDescriptions: {
+              [fromAccount._id.toString()]: `Transfer to ${toAccount.accountName}`,
+              [toAccount._id.toString()]: `Transfer from ${fromAccount.accountName}`
+          },
+          description: `Transfer from ${fromAccount.accountName} to ${toAccount.accountName}`,
+          transactionNumber: transferNumber,
+          amount: amount,
+          date: new Date(),
+          debitAccount: toAccount._id,    // Account receiving the transfer
+          creditAccount: fromAccount._id, // Account sending the transfer
+          createdBy: req.user._id,
+          transactionType: 'Transfer',
+          notes
+      });
+
+      // Update account balances
+      await Promise.all([
+          Account.findByIdAndUpdate(
+              fromAccount._id,
+              { $inc: { balance: -amount } }, // Decrease sending account balance
+              { session }
+          ),
+          Account.findByIdAndUpdate(
+              toAccount._id,
+              { $inc: { balance: amount } },  // Increase receiving account balance
+              { session }
+          )
+      ]);
+
+      // Save all changes
+      await Promise.all([
+          transferTransaction.save({ session }),
+          CompanySettings.findOneAndUpdate(
+              {},
+              { $inc: { 'numberSequences.lastTransferNumber': 1 } },
+              { session }
+          )
+      ]);
+
+      await session.commitTransaction();
+
+      res.status(200).json({
+          success: true,
+          data: {
+              transfer: transferTransaction,
+              fromAccount: {
+                  id: fromAccount._id,
+                  name: fromAccount.accountName,
+                  updatedBalance: fromAccount.balance - amount
+              },
+              toAccount: {
+                  id: toAccount._id,
+                  name: toAccount.accountName,
+                  updatedBalance: toAccount.balance + amount
+              }
+          }
+      });
+
+  } catch (error) {
+      await session.abortTransaction();
+      res.status(400).json({
+          success: false,
+          message: error.message
+      });
+  } finally {
+      session.endSession();
+  }
+};
 
 const createPayment = async (req, res) => {
     const session = await mongoose.startSession();
@@ -791,5 +890,6 @@ module.exports = {
   getCashLedger,
   getBankLedger,
   getAccountLedger,
-  createPayment
+  createPayment,
+  createTransfer
 };

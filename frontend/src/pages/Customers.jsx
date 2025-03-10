@@ -40,7 +40,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { useNavigate } from 'react-router-dom';
-import CreateInvoiceDialog from '../components/CreateInvoiceDialog';
+import CreateInvoiceDialog from '../components/deCreateInvoiceDialog';
 import { DataGrid } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import useResponsiveness from '../hooks/useResponsive';

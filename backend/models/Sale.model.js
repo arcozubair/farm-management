@@ -13,15 +13,21 @@ const saleSchema = new mongoose.Schema({
     },
     customer: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Customer',
+        ref: 'Account',
         required: true
     },
     items: [{
-        itemId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Item',
+        itemType: {
+            type: String,
+            enum: ['Product', 'Livestock'],
             required: true
         },
+        itemId: {
+            type: mongoose.Schema.Types.ObjectId,
+            refPath: 'items.itemType',
+            required: true
+        },
+        name: String,
         quantity: {
             type: Number,
             required: true
@@ -31,11 +37,13 @@ const saleSchema = new mongoose.Schema({
             required: true,
             default: 0
         },
-        amount: {
+        total: {
             type: Number,
             required: true,
             default: 0
-        }
+        },
+        unit: String,
+        weight: Number
     }],
     grandTotal: {
         type: Number,

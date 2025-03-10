@@ -41,7 +41,7 @@ export const getSales = async (date) => {
 // Get single invoice by ID
 export const getsale = async (id) => {
   try {
-    const response = await api.get(`/invoices/${id}`);
+    const response = await api.get(`${BASE_URL}/${id}`);
     return response.data;
   } catch (error) {
     throw {
@@ -134,11 +134,21 @@ export const getSalesByDate = async (date) => {
   }
 };
 
-export const createGroupSales = async (invoiceData) => {
+export const createMultipleSales = async (salesData) => {
   try {
-    const response = await api.post(`${BASE_URL}/group`, invoiceData);
+    const response = await api.post(`${BASE_URL}/create-multiple`, salesData);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to create group invoices' };
   }
-}; 
+};
+
+
+export const updateSale = async (id, saleData) => {
+  try {
+    const response = await api.post(`${BASE_URL}/${id}`, saleData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to update sale' };
+  }
+};

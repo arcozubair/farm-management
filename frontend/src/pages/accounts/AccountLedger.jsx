@@ -42,17 +42,20 @@ const columns = [
   { 
     field: 'date', 
     headerName: 'Date', 
-    width: 120,
+    flex: 0.8,
+    minWidth: 80,
     valueFormatter: (params) => params.value ? format(new Date(params.value), 'dd/MM/yyyy') : '-'
   },
   { 
     field: 'particulars', 
     headerName: 'Particulars', 
-    width: 300,
+    flex: 1.2,
+    minWidth: 120,
     renderCell: (params) => (
       <Typography
         variant="body2"
         sx={{ 
+          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.875rem' },
           fontWeight: params.row.isOpening ? 600 : 400,
           color: params.row.isOpening ? 'primary.main' : 'text.primary'
         }}
@@ -64,11 +67,12 @@ const columns = [
   { 
     field: 'dr', 
     headerName: 'DR', 
-    width: 150,
+    flex: 0.8,
+    minWidth: 70,
     align: 'right',
     headerAlign: 'right',
     renderCell: (params) => (
-      <Typography variant="body2">
+      <Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.875rem' } }}>
         {params.value ? `₹${params.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
       </Typography>
     )
@@ -76,11 +80,12 @@ const columns = [
   { 
     field: 'cr', 
     headerName: 'CR', 
-    width: 150,
+    flex: 0.8,
+    minWidth: 70,
     align: 'right',
     headerAlign: 'right',
     renderCell: (params) => (
-      <Typography variant="body2">
+      <Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.875rem' } }}>
         {params.value ? `₹${params.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
       </Typography>
     )
@@ -88,19 +93,21 @@ const columns = [
   { 
     field: 'balance', 
     headerName: 'Balance', 
-    width: 150,
+    flex: 1,
+    minWidth: 90,
     align: 'right',
     headerAlign: 'right',
     renderCell: (params) => (
       <Typography
         variant="body2"
         sx={{ 
+          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.875rem' },
           fontWeight: params.row.isOpening ? 600 : 400,
           color: params.value >= 0 ? 'success.main' : 'error.main'
         }}
       >
         ₹{Math.abs(params.value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
+        <Typography component="span" variant="caption" sx={{ ml: 0.5, fontSize: { xs: '0.6rem', sm: '0.7rem', md: '0.75rem' } }}>
           {params.value >= 0 ? 'Dr' : 'Cr'}
         </Typography>
       </Typography>
@@ -196,29 +203,15 @@ const AccountLedger = () => {
 
   const rows = useMemo(() => {
     if (!ledgerData) return [];
-
-    return [
-      // Opening balance as first row with explicit formatting
-      {
-        id: 'opening',
-        date: startDate,
-        particulars: 'Opening Balance B/F',
-        dr: ledgerData.openingBalance > 0 ? Math.abs(ledgerData.openingBalance) : null,
-        cr: ledgerData.openingBalance < 0 ? Math.abs(ledgerData.openingBalance) : null,
-        balance: ledgerData.openingBalance,
-        isOpening: true
-      },
-      // Transaction rows
-      ...ledgerData.transactions.map((transaction, index) => ({
-        id: transaction._id || `trans-${index}`,
-        date: transaction.date,
-        particulars: transaction.particulars,
-        dr: transaction.type === 'debit' ? transaction.amount : null,
-        cr: transaction.type === 'credit' ? transaction.amount : null,
-        balance: transaction.runningBalance
-      }))
-    ];
-  }, [ledgerData, startDate]);
+    return ledgerData.transactions.map((transaction, index) => ({
+      id: transaction._id || `trans-${index}`,
+      date: transaction.date,
+      particulars: transaction.particulars,
+      dr: transaction.type === 'debit' ? transaction.amount : null,
+      cr: transaction.type === 'credit' ? transaction.amount : null,
+      balance: transaction.runningBalance
+    }));
+  }, [ledgerData]);
 
   // Custom footer component
   const CustomFooter = () => (
@@ -334,33 +327,71 @@ const AccountLedger = () => {
     }
   };
 
+  const SummaryCard = ({ title, value, type }) => (
+    <Card sx={{ 
+      height: '100%',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+      transition: 'transform 0.2s',
+      '&:hover': {
+        transform: 'translateY(-4px)',
+        boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)'
+      }
+    }}>
+      <CardContent>
+        <Typography color="textSecondary" variant="body2" gutterBottom>
+          {title}
+        </Typography>
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: type === 'opening' ? 'primary.main' : (value >= 0 ? 'success.main' : 'error.main'),
+            fontSize: { xs: '1rem', sm: '1.25rem' }
+          }}
+        >
+          ₹{Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
+            {value >= 0 ? 'Dr' : 'Cr'}
+          </Typography>
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <MainLayout>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
           {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' }
+            }}>
               {accountData?.accountType === 'Sale' ? 'Sales Ledger' : `${accountData?.accountName} Ledger`}
             </Typography>
-            <Box>
-              <Tooltip title="Refresh">
-                <IconButton onClick={fetchLedgerData}>
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Export">
-                <IconButton>
-                  <FileDownloadIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
           </Box>
+
+          {/* Summary Cards */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <SummaryCard 
+                title="Opening Balance" 
+                value={ledgerData?.openingBalance || 0}
+                type="opening"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <SummaryCard 
+                title="Current Balance" 
+                value={ledgerData?.closingBalance || 0}
+              />
+            </Grid>
+          </Grid>
 
           {/* Date Range Controls */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <Select
                   value={dateRange}
                   onChange={(e) => handleDateRangeChange(e.target.value)}
@@ -420,7 +451,12 @@ const AccountLedger = () => {
           </Dialog>
 
           {/* Ledger Table */}
-          <Paper sx={{ height: '75vh', width: '100%' }}>
+          <Paper sx={{ 
+            height: '75vh', 
+            width: '100%',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+            borderRadius: 2
+          }}>
             <DataGrid
               rows={rows}
               columns={columns}
@@ -432,21 +468,21 @@ const AccountLedger = () => {
                 Footer: CustomFooter
               }}
               sx={{
-                '& .MuiDataGrid-row': {
-                  '&[data-rowid="opening"]': {
-                    bgcolor: (theme) => theme.palette.action.hover,
-                    borderBottom: '2px solid',
-                    borderColor: 'divider',
-                    '& .MuiTypography-root': {
-                      fontWeight: 600
-                    }
-                  }
+                '& .MuiDataGrid-root': {
+                  border: 'none',
                 },
-                '& .MuiDataGrid-footerContainer': {
-                  borderTop: 'none'
+                '& .MuiDataGrid-cell': {
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
                 },
-                '& .MuiDataGrid-virtualScroller': {
-                  overflowX: 'hidden'
+                '& .MuiDataGrid-columnHeaders': {
+                  backgroundColor: 'primary.light',
+                  borderBottom: 'none'
+                },
+                '& .MuiDataGrid-columnHeaderTitle': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  fontWeight: 600
                 }
               }}
             />

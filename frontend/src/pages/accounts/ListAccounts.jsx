@@ -20,16 +20,13 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import AddIcon from '@mui/icons-material/Add';
 import { useSnackbar } from 'notistack';
 import useResponsiveness from '../../hooks/useResponsive';
 import accountService from '../../services/accountService';
 import MainLayout from '../../layouts/MainLayout';
 import { useNavigate } from 'react-router-dom';
-import { DataGrid } from '@mui/x-data-grid';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
-import AddIcon from '@mui/icons-material/Add';
-import CreateAccount from './CreateAccount';
-
 
 // Styled components
 const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
@@ -38,7 +35,7 @@ const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
   '& .MuiTable-root': {
     borderCollapse: 'separate',
     borderSpacing: '0 8px',
-  }
+  },
 }));
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -48,7 +45,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
     fontWeight: 600,
-  }
+  },
 }));
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -57,8 +54,33 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
     backgroundColor: theme.palette.action.hover,
   },
   boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-  '& > *': { borderBottom: 'none' }
+  '& > *': { borderBottom: 'none' },
 }));
+
+// Helper function to determine Dr/Cr based on account type
+const getBalanceLabel = (account) => {
+  if (account.accountType === "Sale") {
+    console.log("this is sale account", account);
+  }
+
+  const normalBalanceMap = {
+    'Sale': 'Cr',        // Revenue: Positive = Cr, Negative = Dr
+    'Purchase': 'Dr',
+    'Bank': 'Dr',
+    'Cash': 'Dr',
+    'Expense': 'Dr',
+    'Customer': 'Dr',
+    'Supplier': 'Cr',
+    'Liability': 'Cr'
+  };
+
+  const normalBalance = normalBalanceMap[account.accountType] || 'Dr';
+  const balance = Number(account.balance); // Ensure balance is a number
+  const label = (normalBalance === 'Cr') 
+    ? (balance >= 0 ? 'Cr' : 'Dr') 
+    : (balance >= 0 ? 'Dr' : 'Cr');
+  return label;
+};
 
 // Category Row Component
 const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
@@ -71,7 +93,6 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
       state: { 
         account: {
           ...account,
-          // Ensure all required fields are passed
           accountName: account.accountName,
           accountType: account.accountType,
           openingBalance: account.openingBalance,
@@ -106,7 +127,6 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
             <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 500 }}>
               {category}
             </Typography>
-           
           </Box>
         </StyledTableCell>
         <StyledTableCell align="right">
@@ -120,10 +140,9 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
       </StyledTableRow>
       
       <TableRow>
-        
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-          <Button
+            <Button
               variant="contained"
               size="small"
               onClick={handleCreateClick}
@@ -189,7 +208,7 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
                             variant="caption" 
                             sx={{ ml: 0.5, color: 'text.secondary' }}
                           >
-                            {account.balance >= 0 ? 'Dr' : 'Cr'}
+                            {getBalanceLabel(account)}
                           </Typography>
                         </Typography>
                       </StyledTableCell>
@@ -199,7 +218,7 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
                             <IconButton 
                               size="small"
                               onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click
+                                e.stopPropagation();
                                 handleLedgerClick(account);
                               }}
                             >
@@ -210,7 +229,7 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
                             <IconButton 
                               size="small"
                               onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click
+                                e.stopPropagation();
                                 onEdit(account);
                               }}
                             >
@@ -221,7 +240,7 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
                             <IconButton 
                               size="small"
                               onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click
+                                e.stopPropagation();
                                 onDelete(account._id);
                               }}
                               color="error"
@@ -243,16 +262,19 @@ const CategoryRow = ({ category, accounts, onEdit, onDelete }) => {
   );
 };
 
+// Main ListAccounts Component
 const ListAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
   const { isMobile } = useResponsiveness();
+  const navigate = useNavigate();
 
   const fetchAccounts = async () => {
     try {
       setLoading(true);
       const response = await accountService.getAllAccounts();
+      console.log('Fetched Accounts:', response.data);
       setAccounts(response.data);
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to fetch accounts', { 
@@ -277,8 +299,8 @@ const ListAccounts = () => {
   }, {});
 
   const handleEdit = (account) => {
-    // TODO: Implement edit functionality
     console.log('Edit account:', account);
+    // Example: navigate('/accounts/edit', { state: { account } });
   };
 
   const handleDelete = async (id) => {

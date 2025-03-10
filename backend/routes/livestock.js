@@ -24,6 +24,6 @@ router
 
 router.get('/stats', getLivestockStats);
 
-router.post('/update-price', protect, updatePrice);
+router.post('/update-rate', protect, updatePrice);
 
 module.exports = router; 

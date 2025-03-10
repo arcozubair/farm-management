@@ -21,7 +21,14 @@ const theme = createTheme({
         },
       },
     },
+    MuiBox: {
+      styleOverrides: {
+        root: {
+          padding: '0px', // Default to 8px instead of relying on sx
+        },
+      },
+    },
   },
 });
 
-export default theme; 
+export default theme;

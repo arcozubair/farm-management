@@ -90,7 +90,7 @@ const GroupInvoiceDialog = ({ open, onClose, customers }) => {
                 itemType: 'Product',
                 name: 'Milk',
                 quantity: parseFloat(entry.quantity),
-                price: parseFloat(entry.rate),
+                rate: parseFloat(entry.rate),
                 total: entry.total,
                 unit: 'L',
                 weight: 0
@@ -126,7 +126,7 @@ const GroupInvoiceDialog = ({ open, onClose, customers }) => {
           p.type.toLowerCase().includes('milk')
         );
         if (milkProduct) {
-          setMilkRate(milkProduct.price || 0);
+          setMilkRate(milkProduct.rate || 0);
           setMilkStock(milkProduct.currentStock || 0);
           setRemainingStock(milkProduct.currentStock || 0);
         }

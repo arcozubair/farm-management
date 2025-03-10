@@ -31,7 +31,7 @@ const PriceManagementDialog = ({ open, onClose, items, onUpdatePrices, type }) =
   React.useEffect(() => {
     const initialPrices = {};
     items.forEach(item => {
-      initialPrices[item._id] = item.price || 0;
+      initialPrices[item._id] = item.rate || 0;
     });
     setPrices(initialPrices);
   }, [items]);
@@ -59,7 +59,7 @@ const PriceManagementDialog = ({ open, onClose, items, onUpdatePrices, type }) =
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <CurrencyRupeeIcon fontSize="small" />
-                <Typography>{item.price || 0}</Typography>
+                <Typography>{item.rate || 0}</Typography>
               </Box>
             </Box>
             <TextField
@@ -105,7 +105,7 @@ const PriceManagementDialog = ({ open, onClose, items, onUpdatePrices, type }) =
             <TableCell>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <CurrencyRupeeIcon fontSize="small" />
-                <Typography>{item.price || 0}</Typography>
+                <Typography>{item.rate || 0}</Typography>
               </Box>
             </TableCell>
             <TableCell>

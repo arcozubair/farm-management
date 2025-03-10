@@ -25,7 +25,7 @@ const AddProduct = ({ open, onClose, onSuccess }) => {
     category: '',
     unit: '',
     currentStock: 0,
-    price: 0,
+    rate: 0,
     description: ''
   });
 
@@ -55,7 +55,7 @@ const AddProduct = ({ open, onClose, onSuccess }) => {
       category: '',
       unit: '',
       currentStock: 0,
-      price: 0,
+      rate: 0,
       description: ''
     });
   };
@@ -123,9 +123,9 @@ const AddProduct = ({ open, onClose, onSuccess }) => {
           <TextField
             fullWidth
             label="Price"
-            name="price"
+            name="rate"
             type="number"
-            value={formData.price}
+            value={formData.rate}
             onChange={handleChange}
             margin="normal"
             required

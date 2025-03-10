@@ -151,7 +151,7 @@ const ProductCard = ({ product }) => {
             />
             <Chip
               icon={<CurrencyRupeeIcon sx={{ fontSize: '1rem' }} />}
-              label={product.price.toFixed(2)}
+              label={product.rate.toFixed(2)}
               size="small"
               variant="outlined"
               sx={{ borderRadius: '8px' }}

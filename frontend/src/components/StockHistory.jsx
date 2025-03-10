@@ -9,7 +9,8 @@ import {
   Paper,
   Chip,
   CircularProgress,
-  Box
+  Box,
+  Typography
 } from '@mui/material';
 import * as stockMovementService from '../services/stockMovementService';
 
@@ -66,36 +67,44 @@ const StockHistory = ({ itemId, itemType }) => {
   }
 
   return (
-    <TableContainer component={Paper}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Date</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Quantity</TableCell>
-            <TableCell>Previous Stock</TableCell>
-            <TableCell>Current Stock</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {movements.map((movement) => (
-            <TableRow key={movement._id}>
-              <TableCell>{formatDate(movement.date)}</TableCell>
-              <TableCell>
-                <Chip 
-                  label={movement.transactionType}
-                  color={getTransactionTypeColor(movement.transactionType)}
-                  size="small"
-                />
-              </TableCell>
-              <TableCell>{movement.quantity}</TableCell>
-              <TableCell>{movement.previousStock}</TableCell>
-              <TableCell>{movement.currentStock}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <>
+      {movements.length>0 ? (
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Previous Stock</TableCell>
+                <TableCell>Current Stock</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {movements.map((movement) => (
+                <TableRow key={movement._id}>
+                  <TableCell>{formatDate(movement.date)}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={movement.transactionType}
+                      color={getTransactionTypeColor(movement.transactionType)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>{movement.quantity}</TableCell>
+                  <TableCell>{movement.previousStock}</TableCell>
+                  <TableCell>{movement.currentStock}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <Typography variant="subtitle1" gutterBottom sx={{textAlign:"center"}}>
+       No Stock History Found
+      </Typography>
+      )}
+    </>
   );
 };
 

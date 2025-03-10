@@ -4,11 +4,13 @@ import { Add as AddIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PurchaseList from './PurchaseList';
 import purchaseService from '../../services/purchaseService';
+import AddTransactionDialog from './AddTransactionDialog';
 
 const Purchases = () => {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchPurchases();
@@ -27,7 +29,7 @@ const Purchases = () => {
   };
 
   const handleCreatePurchase = () => {
-    navigate('/purchases/new');
+    setAddDialogOpen(true);
   };
 
   return (
@@ -51,6 +53,12 @@ const Purchases = () => {
           purchases={purchases} 
           loading={loading} 
           onRefresh={fetchPurchases}
+        />
+
+        <AddTransactionDialog
+          open={addDialogOpen}
+          onClose={() => setAddDialogOpen(false)}
+          type="purchase"
         />
       </Box>
     </Container>

@@ -24,7 +24,7 @@ const AddProductDialog = ({ open, onClose, onSuccess }) => {
     name: '',
     unit: '',
     currentStock: 0,
-    price: 0,
+    rate: 0,
     description: ''
   });
 
@@ -54,7 +54,7 @@ const AddProductDialog = ({ open, onClose, onSuccess }) => {
       name: '',
       unit: '',
       currentStock: 0,
-      price: 0,
+      rate: 0,
       description: ''
     });
   };
@@ -115,9 +115,9 @@ const AddProductDialog = ({ open, onClose, onSuccess }) => {
               <TextField
                 fullWidth
                 type="number"
-                name="price"
+                name="rate"
                 label="Price"
-                value={formData.price}
+                value={formData.rate}
                 onChange={handleChange}
                 required
                 inputProps={{ min: 0, step: 0.01 }}

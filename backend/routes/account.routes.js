@@ -11,7 +11,8 @@ const {
   getCashLedger,
   getBankLedger,
   getAccountLedger,
-  createPayment
+  createPayment,
+  createTransfer
 } = require("../controllers/accountController");
 const { protect } = require("../middleware/auth");
 
@@ -27,5 +28,7 @@ router.post("/", createAccount);
 router.get("/:id", getAccount);
 router.put("/:id", updateAccount);
 router.post("/payment", createPayment);
+router.post("/transfer", createTransfer);
+
 
 module.exports = router; 

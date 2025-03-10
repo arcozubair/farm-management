@@ -11,27 +11,26 @@ import {
   Grid,
   Button,
   Alert,
-  IconButton
+  IconButton,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
+import { useSnackbar } from 'notistack';
 import accountService from '../services/accountService';
-import CreateInvoiceDialog from './CreateInvoiceDialog';
+import CreateInvoiceDialog from './deCreateInvoiceDialog';
 import useResponsiveness from '../hooks/useResponsive';
+import CreateAccountForm from '../pages/accounts/CreateAccountForm';
 
-// Move formatBalance to be accessible by both components
 const formatBalance = (balance, balanceType) => {
   const amount = new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'INR'
+    currency: 'INR',
   }).format(Math.abs(balance || 0));
-
   return `${amount} ${balanceType || 'DR'}`;
 };
 
 const CustomerPreview = ({ customer }) => {
   if (!customer) return null;
-  
   return (
     <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
       <Typography variant="subtitle1" gutterBottom>
@@ -40,7 +39,7 @@ const CustomerPreview = ({ customer }) => {
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
           <Typography variant="body2" color="text.secondary">
-            Name: {customer.customerName}
+            Name: {customer.customerName || 'N/A'}
           </Typography>
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -62,15 +61,15 @@ const CustomerPreview = ({ customer }) => {
             </Typography>
           </Grid>
         )}
-        {customer.openingBalance !== undefined && (
+        {customer.initialBalance !== undefined && (
           <Grid item xs={12}>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: customer.openingBalanceType === 'Credit' ? 'success.main' : 'error.main'
+            <Typography
+              variant="body2"
+              sx={{
+                color: customer.balanceType === 'Credit' ? 'success.main' : 'error.main',
               }}
             >
-              Balance: {formatBalance(customer.openingBalance, customer.openingBalanceType)}
+              Balance: {formatBalance(customer.initialBalance, customer.balanceType)}
             </Typography>
           </Grid>
         )}
@@ -80,6 +79,7 @@ const CustomerPreview = ({ customer }) => {
 };
 
 const AddSaleDialog = ({ open, onClose }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const { isMobile } = useResponsiveness();
   const [customerAccounts, setCustomerAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -87,6 +87,7 @@ const AddSaleDialog = ({ open, onClose }) => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [searchInputValue, setSearchInputValue] = useState('');
+  const [createAccountDialogOpen, setCreateAccountDialogOpen] = useState(false);
 
   const searchInputRef = React.useRef(null);
 
@@ -95,13 +96,10 @@ const AddSaleDialog = ({ open, onClose }) => {
       setTimeout(() => {
         if (searchInputRef.current) {
           const input = searchInputRef.current.querySelector('input');
-          if (input) {
-            input.focus();
-          }
+          if (input) input.focus();
         }
       }, 100);
     } else {
-      // Reset states when dialog closes
       setSelectedCustomer(null);
       setSearchInputValue('');
       setCustomerAccounts([]);
@@ -111,33 +109,25 @@ const AddSaleDialog = ({ open, onClose }) => {
 
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
-
-    if (open) {
-      window.addEventListener('keydown', handleKeyPress);
-    }
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-    };
+    if (open) window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, [open, onClose]);
 
   const handleSearch = async (searchText) => {
-    if (searchText.length < 2) {
+    const safeSearchText = searchText || '';
+    if (safeSearchText.length < 2) {
       setCustomerAccounts([]);
       setError(null);
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
       const response = await accountService.getAccounts({
         accountType: 'Customer',
-        search: searchText
+        search: safeSearchText,
       });
       setCustomerAccounts(response.data || []);
     } catch (error) {
@@ -164,16 +154,13 @@ const AddSaleDialog = ({ open, onClose }) => {
 
   const handleCustomerSelect = (event, value) => {
     setSelectedCustomer(value);
-    if (value) {
-      setInvoiceDialogOpen(true);
-    }
+    if (value) setInvoiceDialogOpen(true);
   };
 
   const handleInvoiceClose = () => {
     setInvoiceDialogOpen(false);
     setSelectedCustomer(null);
     setSearchInputValue('');
-    
     onClose();
   };
 
@@ -181,38 +168,43 @@ const AddSaleDialog = ({ open, onClose }) => {
     try {
       const response = await accountService.getAccounts({
         accountType: 'Customer',
-        search: 'Walk-in Customer'
+        search: 'Walk-in Customer',
       });
       const walkInCustomer = response.data?.[0];
-      if (walkInCustomer) {
-        handleCustomerSelect(null, walkInCustomer);
-      }
+      if (walkInCustomer) handleCustomerSelect(null, walkInCustomer);
     } catch (error) {
       setError('Failed to load walk-in customer');
     }
   };
 
+  const handleAddNewCustomer = () => {
+    setCreateAccountDialogOpen(true);
+  };
+
+  const handleCreateAccountClose = () => {
+    setCreateAccountDialogOpen(false);
+  };
+
+  const handleCreateAccountSave = (newCustomer) => {
+    console.log('New Customer:', newCustomer);
+    setCreateAccountDialogOpen(false);
+    const customerName = newCustomer?.customerName || '';
+    setSearchInputValue(customerName);
+    debouncedSearch(customerName);
+    setSelectedCustomer(newCustomer || null);
+    setInvoiceDialogOpen(true);
+  };
+
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={onClose}
-        maxWidth="sm"
-        fullWidth
-        fullScreen={isMobile}
-      >
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Add Sale</Typography>
             <IconButton
               aria-label="close"
               onClick={onClose}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: (theme) => theme.palette.grey[500],
-              }}
+              sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
             >
               <CloseIcon />
             </IconButton>
@@ -221,12 +213,11 @@ const AddSaleDialog = ({ open, onClose }) => {
         <DialogContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="subtitle1">Quick Actions</Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleWalkInCustomer}
-            >
+            <Button variant="outlined" size="small" onClick={handleWalkInCustomer}>
               Walk-in Customer
+            </Button>
+            <Button variant="outlined" size="small" onClick={handleAddNewCustomer}>
+              Add New Customer
             </Button>
           </Box>
 
@@ -239,7 +230,7 @@ const AddSaleDialog = ({ open, onClose }) => {
           <Box sx={{ minWidth: 300 }}>
             <Autocomplete
               options={customerAccounts}
-              getOptionLabel={(option) => `${option.customerName} (${option.contactNo || 'No contact'})`}
+              getOptionLabel={(option) => `${option.customerName || 'N/A'} (${option.contactNo || 'No contact'})`}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -249,11 +240,7 @@ const AddSaleDialog = ({ open, onClose }) => {
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {loading ? (
-                          <CircularProgress color="inherit" size={20} />
-                        ) : (
-                          <SearchIcon color="action" />
-                        )}
+                        {loading ? <CircularProgress color="inherit" size={20} /> : <SearchIcon color="action" />}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -264,13 +251,14 @@ const AddSaleDialog = ({ open, onClose }) => {
               value={selectedCustomer}
               inputValue={searchInputValue}
               onInputChange={(event, newInputValue) => {
-                setSearchInputValue(newInputValue);
-                debouncedSearch(newInputValue);
+                const safeValue = newInputValue || '';
+                setSearchInputValue(safeValue);
+                debouncedSearch(safeValue);
               }}
               renderOption={(props, option) => (
                 <li {...props}>
                   <Box>
-                    <Typography variant="body1">{option.customerName}</Typography>
+                    <Typography variant="body1">{option.customerName || 'N/A'}</Typography>
                     <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                       {option.contactNo && `Contact: ${option.contactNo}`}
                       {option.email && ` • Email: ${option.email}`}
@@ -278,26 +266,26 @@ const AddSaleDialog = ({ open, onClose }) => {
                     <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                       {option.address && `Address: ${option.address}`}
                     </Typography>
-                    {option.openingBalance !== undefined && (
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
+                    {option.initialBalance !== undefined && (
+                      <Typography
+                        variant="caption"
+                        sx={{
                           display: 'block',
-                          color: option.openingBalanceType === 'Credit' ? 'success.main' : 'error.main'
+                          color: option.balanceType === 'Credit' ? 'success.main' : 'error.main',
                         }}
                       >
-                        Balance: {formatBalance(option.openingBalance, option.openingBalanceType)}
+                        Balance: {formatBalance(option.initialBalance, option.balanceType)}
                       </Typography>
                     )}
                   </Box>
                 </li>
               )}
               noOptionsText={
-                searchInputValue.length < 2 
-                  ? "Type at least 2 characters to search" 
-                  : loading 
-                    ? "Searching..." 
-                    : "No customers found"
+                searchInputValue.length < 2
+                  ? 'Type at least 2 characters to search'
+                  : loading
+                  ? 'Searching...'
+                  : 'No customers found'
               }
               loading={loading}
               loadingText={
@@ -320,8 +308,31 @@ const AddSaleDialog = ({ open, onClose }) => {
           customer={selectedCustomer}
         />
       )}
+
+      <Dialog open={createAccountDialogOpen} onClose={handleCreateAccountClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Add New Customer</Typography>
+            <IconButton
+              aria-label="close"
+              onClick={handleCreateAccountClose}
+              sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <CreateAccountForm
+            defaultAccountType="Customer"
+            onSave={handleCreateAccountSave}
+            onCancel={handleCreateAccountClose}
+            enqueueSnackbar={enqueueSnackbar}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
 
-export default AddSaleDialog; 
+export default AddSaleDialog;

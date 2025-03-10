@@ -26,7 +26,7 @@ const validationSchema = Yup.object({
       itemType: Yup.string().required('Item type is required'),
       itemId: Yup.string().required('Item is required'),
       quantity: Yup.number().required('Quantity is required').min(1, 'Minimum quantity is 1'),
-      price: Yup.number().required('Price is required').min(0, 'Price cannot be negative'),
+      rate: Yup.number().required('Price is required').min(0, 'Price cannot be negative'),
     })
   ),
   paidAmount: Yup.number().min(0, 'Paid amount cannot be negative'),
@@ -66,7 +66,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
         itemId: '',
         name: '',
         quantity: 1,
-        price: 0,
+        rate: 0,
         total: 0
       }],
       paidAmount: 0,
@@ -84,7 +84,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
       ...newItems[index],
       itemType: value,
       itemId: '',
-      price: 0,
+      rate: 0,
       name: ''
     };
     formik.setFieldValue('items', newItems);
@@ -101,8 +101,8 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
         ...newItems[index],
         itemId: selectedItem._id,
         name: selectedItem.name || selectedItem.type,
-        price: selectedItem.price,
-        total: selectedItem.price * newItems[index].quantity
+        rate: selectedItem.rate,
+        total: selectedItem.rate * newItems[index].quantity
       };
     }
     formik.setFieldValue('items', newItems);
@@ -110,7 +110,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
   };
 
   const calculateGrandTotal = (items) => {
-    const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const total = items.reduce((sum, item) => sum + (item.rate * item.quantity), 0);
     formik.setFieldValue('grandTotal', total);
   };
 
@@ -120,7 +120,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
       itemId: '',
       name: '',
       quantity: 1,
-      price: 0,
+      rate: 0,
       total: 0
     }]);
   };
@@ -207,7 +207,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
                       newItems[index] = {
                         ...newItems[index],
                         quantity: Number(e.target.value),
-                        total: Number(e.target.value) * item.price
+                        total: Number(e.target.value) * item.rate
                       };
                       formik.setFieldValue('items', newItems);
                       calculateGrandTotal(newItems);
@@ -220,12 +220,12 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
                     fullWidth
                     type="number"
                     label="Price"
-                    value={item.price}
+                    value={item.rate}
                     onChange={(e) => {
                       const newItems = [...formik.values.items];
                       newItems[index] = {
                         ...newItems[index],
-                        price: Number(e.target.value),
+                        rate: Number(e.target.value),
                         total: Number(e.target.value) * item.quantity
                       };
                       formik.setFieldValue('items', newItems);
@@ -239,7 +239,7 @@ const AddSaleDialog = ({ open, onClose, onSubmit, customers }) => {
                     fullWidth
                     disabled
                     label="Total"
-                    value={item.quantity * item.price}
+                    value={item.quantity * item.rate}
                   />
                 </Grid>
 

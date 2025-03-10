@@ -30,6 +30,11 @@ const companySettingsSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    lastTransferNumber:{
+      type: Number,
+      default: 0
+
+    },
     lastSaleNumber: {
       type: Number,
       default: 0
@@ -51,6 +56,10 @@ const companySettingsSchema = new mongoose.Schema({
     transactionPrefix: {
       type: String,
       default: 'TXN'
+    },
+    transferPrefix:{
+      type: String,
+      default:'TRF'
     },
     salePrefix: {
       type: String,

@@ -43,7 +43,7 @@ const Payments = () => {
   return (
     <MainLayout>
       <Container maxWidth="lg">
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: isMobile? 0 : 3}}>
           <Typography 
             variant={isMobile ? "h5" : "h4"} 
             sx={{ 
